@@ -5,23 +5,24 @@ import {
   RESOLUCOES,
 } from '@/assets/data/hardware';
 import { AutocompleteHardware } from '@/components/autocomplete-hardware';
+import { ResultadoCard } from '@/components/resultado-card';
 import { SeletorOpcoes } from '@/components/seletor-opcoes';
 import { createOptmizedSetting } from '@/service/ai/generator';
 import type { Resultado } from '@/service/ai/schema';
 import {
   alertaStyles,
   botaoStyles,
-  cardStyles,
   Cores,
   inputStyles,
   layoutStyles,
   textoStyles,
 } from '@/styles';
-import { MotiView } from 'moti';
+import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -33,23 +34,11 @@ const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as 
 type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
 type Erros = Partial<Record<CampoObrigatorio, string>>;
 
-function formatarDataGeracao(valor: string): string {
-  const data = new Date(valor);
-
-  if (Number.isNaN(data.getTime())) {
-    return 'data indisponível';
-  }
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(data);
-}
-
 // ---------------------------------------------------------------------------
 // Tela principal
 // ---------------------------------------------------------------------------
 export default function Index() {
+  const router = useRouter();
   const [jogo, setJogo] = useState('');
   const [placaVideo, setPlacaVideo] = useState('');
   const [processador, setProcessador] = useState('');
@@ -149,6 +138,20 @@ export default function Index() {
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
     >
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push('/historico')}
+              accessibilityRole="button"
+              accessibilityLabel="Ver histórico de consultas"
+              hitSlop={8}
+            >
+              <Text style={textoStyles.linkHeader}>Histórico</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <Text style={textoStyles.display}>SettingsCraft</Text>
       <Text style={textoStyles.subtitulo}>
         Configurações gráficas otimizadas para o seu hardware
@@ -224,67 +227,14 @@ export default function Index() {
       )}
 
       {!!resultado && (
-        <MotiView
-          style={cardStyles.container}
-          from={{ opacity: 0, translateY: 60 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', stiffness: 100 }}
-        >
-          <Text style={textoStyles.tituloCard}>⚙️ Configurações — {jogo}</Text>
-
-          {resultado.configuracoes.map((item, index) => (
-            <MotiView
-              key={index}
-              style={cardStyles.linhaConfig}
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 300, delay: index * 60 }}
-            >
-              <View style={layoutStyles.rowSpaceBetween}>
-                <Text style={cardStyles.nomeConfig}>{item.nome}</Text>
-                <View style={cardStyles.badgeValor}>
-                  <Text style={cardStyles.textoValor}>{item.valor}</Text>
-                </View>
-              </View>
-              {!!item.justificativa && (
-                <Text style={cardStyles.justificativa}>{item.justificativa}</Text>
-              )}
-            </MotiView>
-          ))}
-
-          {!!resultado.fpsEstimado && (
-            <View style={cardStyles.badgeFps}>
-              <Text style={cardStyles.rotuloFps}>
-                FPS estimado em {resolucaoConsultada}
-              </Text>
-              <Text selectable style={cardStyles.textoFps}>{resultado.fpsEstimado}</Text>
-            </View>
-          )}
-
-          <View style={cardStyles.seloOrigem}>
-            <Text style={cardStyles.textoOrigem}>
-              Origem: {resultado.fonte} · Gerado em {formatarDataGeracao(resultado.geradoEm)}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              botaoStyles.secundario,
-              desabilitado && botaoStyles.secundarioDesabilitado,
-            ]}
-            onPress={gerarNovamente}
-            disabled={desabilitado}
-          >
-            {isGerandoNovamente ? (
-              <View style={layoutStyles.row}>
-                <ActivityIndicator color={Cores.acento} />
-                <Text style={botaoStyles.textoSecundario}>Gerando novamente...</Text>
-              </View>
-            ) : (
-              <Text style={botaoStyles.textoSecundario}>Gerar novamente</Text>
-            )}
-          </TouchableOpacity>
-        </MotiView>
+        <ResultadoCard
+          jogo={jogo}
+          resolucaoConsultada={resolucaoConsultada}
+          resultado={resultado}
+          aoGerarNovamente={gerarNovamente}
+          gerandoNovamente={isGerandoNovamente}
+          desabilitado={desabilitado}
+        />
       )}
     </ScrollView>
   );

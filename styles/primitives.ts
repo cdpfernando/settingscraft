@@ -72,6 +72,12 @@ export const textoStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Cores.fundoBorda,
   },
+
+  linkHeader: {
+    fontSize: Fonte.tamanhoMd,
+    fontWeight: Fonte.pesoSemibold,
+    color: Cores.acento,
+  },
 });
 
 // ---------------------------------------------------------------------------
@@ -349,6 +355,73 @@ export const seletorStyles = StyleSheet.create({
 
   textoOpcaoAtiva: {
     color: Cores.acento,
+    fontWeight: Fonte.pesoSemibold,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Histórico
+// ---------------------------------------------------------------------------
+export const historicoStyles = StyleSheet.create({
+  tela: {
+    flexGrow: 1,
+    backgroundColor: Cores.fundoBase,
+    padding: Espaco.xl,
+  },
+
+  item: {
+    backgroundColor: Cores.fundoCard,
+    borderRadius: Raio.lg,
+    borderWidth: 1,
+    borderColor: Cores.fundoBorda,
+    padding: Espaco.lg,
+    marginBottom: Espaco.md,
+  },
+
+  itemPressionado: {
+    opacity: 0.75,
+  },
+
+  itemJogo: {
+    fontSize: Fonte.tamanhoLg,
+    fontWeight: Fonte.pesoBold,
+    color: Cores.textoPrimario,
+    marginBottom: Espaco.xs,
+  },
+
+  itemHardware: {
+    fontSize: Fonte.tamanhoSm,
+    color: Cores.textoSecundario,
+    marginBottom: Espaco.sm,
+  },
+
+  itemRodape: {
+    fontSize: Fonte.tamanhoXs,
+    color: Cores.textoTerciario,
+  },
+
+  vazioContainer: {
+    flexGrow: 1,
+    backgroundColor: Cores.fundoBase,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Espaco.xxl,
+  },
+
+  vazioTexto: {
+    fontSize: Fonte.tamanhoMd,
+    color: Cores.textoSecundario,
+    textAlign: 'center',
+  },
+
+  botaoVoltar: {
+    marginBottom: Espaco.xl,
+    alignSelf: 'flex-start',
+  },
+
+  textoBotaoVoltar: {
+    color: Cores.acento,
+    fontSize: Fonte.tamanhoMd,
     fontWeight: Fonte.pesoSemibold,
   },
 });
