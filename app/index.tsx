@@ -1,3 +1,11 @@
+import {
+  OPCOES_MEMORIA,
+  PLACAS_VIDEO,
+  PROCESSADORES,
+  RESOLUCOES,
+} from '@/assets/data/hardware';
+import { AutocompleteHardware } from '@/components/autocomplete-hardware';
+import { SeletorOpcoes } from '@/components/seletor-opcoes';
 import { createOptmizedSetting } from '@/service/ai/generator';
 import type { Resultado } from '@/service/ai/schema';
 import {
@@ -7,26 +15,19 @@ import {
   Cores,
   inputStyles,
   layoutStyles,
-  resolucaoStyles,
   textoStyles,
 } from '@/styles';
 import { MotiView } from 'moti';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-
-const RESOLUCOES = [
-  '1280x720 (HD)',
-  '1920x1080 (Full HD)',
-  '2560x1440 (2K)',
-  '3840x2160 (4K)',
-];
 
 const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as const;
 type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
@@ -40,7 +41,7 @@ export default function Index() {
   const [placaVideo, setPlacaVideo] = useState('');
   const [processador, setProcessador] = useState('');
   const [memoria, setMemoria] = useState('');
-  const [resolucao, setResolucao] = useState(RESOLUCOES[1]);
+  const [resolucao, setResolucao] = useState<string>(RESOLUCOES[1]);
   const [erros, setErros] = useState<Erros>({});
   const [erroApi, setErroApi] = useState('');
   const [resultado, setResultado] = useState<Resultado | null>(null);
@@ -74,6 +75,7 @@ export default function Index() {
     if (isLoading) return;
     if (!validarFormulario()) return;
 
+    Keyboard.dismiss();
     setResultado(null);
     setErroApi('');
     setIsLoading(true);
@@ -95,7 +97,12 @@ export default function Index() {
   };
 
   return (
-    <ScrollView contentContainerStyle={layoutStyles.telaScroll}>
+    <ScrollView
+      contentContainerStyle={layoutStyles.telaScroll}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={textoStyles.display}>SettingsCraft</Text>
       <Text style={textoStyles.subtitulo}>
         Configurações gráficas otimizadas para o seu hardware
@@ -113,64 +120,38 @@ export default function Index() {
         {!!erros.jogo && <Text style={inputStyles.mensagemErro}>{erros.jogo}</Text>}
       </View>
 
-      <Text style={textoStyles.label}>Placa de vídeo</Text>
-      <View style={inputStyles.container}>
-        <TextInput
-          value={placaVideo}
-          placeholder="ex: RTX 3060"
-          placeholderTextColor={Cores.textoTerciario}
-          onChangeText={(v) => editarCampo('placaVideo', v)}
-          style={[inputStyles.campo, erros.placaVideo && inputStyles.campoErro]}
-        />
-        {!!erros.placaVideo && <Text style={inputStyles.mensagemErro}>{erros.placaVideo}</Text>}
-      </View>
+      <AutocompleteHardware
+        label="Placa de vídeo"
+        value={placaVideo}
+        opcoes={PLACAS_VIDEO}
+        placeholder="ex: RTX 3060"
+        erro={erros.placaVideo}
+        onChangeText={(valor) => editarCampo('placaVideo', valor)}
+      />
 
-      <Text style={textoStyles.label}>Processador</Text>
-      <View style={inputStyles.container}>
-        <TextInput
-          value={processador}
-          placeholder="ex: Intel i7-12700K"
-          placeholderTextColor={Cores.textoTerciario}
-          onChangeText={(v) => editarCampo('processador', v)}
-          style={[inputStyles.campo, erros.processador && inputStyles.campoErro]}
-        />
-        {!!erros.processador && <Text style={inputStyles.mensagemErro}>{erros.processador}</Text>}
-      </View>
+      <AutocompleteHardware
+        label="Processador"
+        value={processador}
+        opcoes={PROCESSADORES}
+        placeholder="ex: Intel Core i7-12700K"
+        erro={erros.processador}
+        onChangeText={(valor) => editarCampo('processador', valor)}
+      />
 
-      <Text style={textoStyles.label}>Memória RAM</Text>
-      <View style={inputStyles.container}>
-        <TextInput
-          value={memoria}
-          placeholder="ex: 16GB DDR4"
-          placeholderTextColor={Cores.textoTerciario}
-          onChangeText={(v) => editarCampo('memoria', v)}
-          style={[inputStyles.campo, erros.memoria && inputStyles.campoErro]}
-        />
-        {!!erros.memoria && <Text style={inputStyles.mensagemErro}>{erros.memoria}</Text>}
-      </View>
+      <SeletorOpcoes
+        label="Memória RAM"
+        opcoes={OPCOES_MEMORIA}
+        valor={memoria}
+        erro={erros.memoria}
+        onChange={(valor) => editarCampo('memoria', valor)}
+      />
 
-      <Text style={textoStyles.label}>Resolução alvo</Text>
-      <View style={resolucaoStyles.container}>
-        {RESOLUCOES.map((res) => (
-          <TouchableOpacity
-            key={res}
-            style={[
-              resolucaoStyles.botao,
-              resolucao === res && resolucaoStyles.botaoAtivo,
-            ]}
-            onPress={() => setResolucao(res)}
-          >
-            <Text
-              style={[
-                resolucaoStyles.textoBotao,
-                resolucao === res && resolucaoStyles.textoBotaoAtivo,
-              ]}
-            >
-              {res}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <SeletorOpcoes
+        label="Resolução alvo"
+        opcoes={RESOLUCOES}
+        valor={resolucao}
+        onChange={setResolucao}
+      />
 
       <TouchableOpacity
         style={[

@@ -105,6 +105,38 @@ export const inputStyles = StyleSheet.create({
     color: Cores.erro,
     marginTop: Espaco.xs,
   },
+
+  listaSugestoes: {
+    width: '100%',
+    backgroundColor: Cores.fundoCard,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: Cores.fundoBorda,
+    borderBottomLeftRadius: Raio.md,
+    borderBottomRightRadius: Raio.md,
+    overflow: 'hidden',
+  },
+
+  sugestao: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: Espaco.md,
+    paddingVertical: Espaco.sm,
+  },
+
+  sugestaoComBorda: {
+    borderBottomWidth: 1,
+    borderBottomColor: Cores.fundoBorda,
+  },
+
+  sugestaoPressionada: {
+    backgroundColor: Cores.acentoSombra,
+  },
+
+  textoSugestao: {
+    color: Cores.textoPrimario,
+    fontSize: Fonte.tamanhoMd,
+  },
 });
 
 // ---------------------------------------------------------------------------
@@ -224,16 +256,33 @@ export const cardStyles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 // Seletor de resolução
 // ---------------------------------------------------------------------------
-export const resolucaoStyles = StyleSheet.create({
+export const seletorStyles = StyleSheet.create({
+  grupo: {
+    width: '100%',
+    marginBottom: Espaco.xl,
+  },
+
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Espaco.sm,
-    marginBottom: Espaco.xl,
     width: '100%',
+    borderRadius: Raio.md,
   },
 
-  botao: {
+  containerErro: {
+    borderWidth: 1,
+    borderColor: Cores.erro,
+    padding: Espaco.xs,
+  },
+
+  opcao: {
+    minWidth: 88,
+    minHeight: 42,
+    flexGrow: 1,
+    flexBasis: '40%',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Espaco.md,
     paddingVertical: Espaco.sm,
     borderRadius: Raio.sm,
@@ -242,18 +291,23 @@ export const resolucaoStyles = StyleSheet.create({
     backgroundColor: Cores.fundoCard,
   },
 
-  botaoAtivo: {
+  opcaoAtiva: {
     borderColor: Cores.acento,
     backgroundColor: Cores.acentoSombra,
   },
 
-  textoBotao: {
+  opcaoPressionada: {
+    opacity: 0.75,
+  },
+
+  textoOpcao: {
     fontSize: Fonte.tamanhoSm,
     color: Cores.textoSecundario,
     fontWeight: Fonte.pesoMedio,
+    textAlign: 'center',
   },
 
-  textoBotaoAtivo: {
+  textoOpcaoAtiva: {
     color: Cores.acento,
     fontWeight: Fonte.pesoSemibold,
   },
