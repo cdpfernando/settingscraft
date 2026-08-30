@@ -4,10 +4,10 @@
 
 **Blocked by:** 09 — Cache local persistente como primeira fonte.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Botão de gerar novamente disponível na tela de resultado
-- [ ] A geração forçada pula o elo de cache e vai à cadeia de provedores
-- [ ] O novo resultado sobrescreve o registro do mesmo cenário
-- [ ] Consultar o mesmo cenário depois devolve a versão nova
-- [ ] Botão desabilitado e indicador de carregamento durante a geração
+- [x] Botão de gerar novamente disponível na tela de resultado
+- [x] A geração forçada pula o elo de cache e vai à cadeia de provedores
+- [x] O novo resultado sobrescreve o registro do mesmo cenário
+- [x] Consultar o mesmo cenário depois devolve a versão nova
+- [x] Botão desabilitado e indicador de carregamento durante a geração

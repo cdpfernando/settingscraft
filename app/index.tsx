@@ -60,6 +60,9 @@ export default function Index() {
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [resolucaoConsultada, setResolucaoConsultada] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGerandoNovamente, setIsGerandoNovamente] = useState(false);
+
+  const desabilitado = isLoading || isGerandoNovamente;
 
   const valores: Record<CampoObrigatorio, string> = { jogo, placaVideo, processador, memoria };
 
@@ -86,7 +89,7 @@ export default function Index() {
   };
 
   const gerarConfiguracoes = async () => {
-    if (isLoading) return;
+    if (desabilitado) return;
     if (!validarFormulario()) return;
 
     Keyboard.dismiss();
@@ -109,6 +112,34 @@ export default function Index() {
       setErroApi(resposta.erro);
     }
     setIsLoading(false);
+  };
+
+  const gerarNovamente = async () => {
+    if (desabilitado) return;
+    if (!validarFormulario()) return;
+
+    Keyboard.dismiss();
+    setErroApi('');
+    setIsGerandoNovamente(true);
+
+    const resposta = await createOptmizedSetting(
+      {
+        jogo,
+        placaVideo,
+        processador,
+        memoria,
+        resolucao,
+      },
+      { ignorarCache: true },
+    );
+
+    if (resposta.ok) {
+      setResultado(resposta.resultado);
+      setResolucaoConsultada(resolucao);
+    } else {
+      setErroApi(resposta.erro);
+    }
+    setIsGerandoNovamente(false);
   };
 
   return (
@@ -171,10 +202,10 @@ export default function Index() {
       <TouchableOpacity
         style={[
           botaoStyles.primario,
-          isLoading && botaoStyles.primarioDesabilitado,
+          desabilitado && botaoStyles.primarioDesabilitado,
         ]}
         onPress={gerarConfiguracoes}
-        disabled={isLoading}
+        disabled={desabilitado}
       >
         {isLoading ? (
           <View style={layoutStyles.row}>
@@ -235,6 +266,24 @@ export default function Index() {
               Origem: {resultado.fonte} · Gerado em {formatarDataGeracao(resultado.geradoEm)}
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={[
+              botaoStyles.secundario,
+              desabilitado && botaoStyles.secundarioDesabilitado,
+            ]}
+            onPress={gerarNovamente}
+            disabled={desabilitado}
+          >
+            {isGerandoNovamente ? (
+              <View style={layoutStyles.row}>
+                <ActivityIndicator color={Cores.acento} />
+                <Text style={botaoStyles.textoSecundario}>Gerando novamente...</Text>
+              </View>
+            ) : (
+              <Text style={botaoStyles.textoSecundario}>Gerar novamente</Text>
+            )}
+          </TouchableOpacity>
         </MotiView>
       )}
     </ScrollView>

@@ -182,6 +182,28 @@ export const botaoStyles = StyleSheet.create({
     fontSize: Fonte.tamanhoMd,
     color: Cores.textoInverso,
   },
+
+  secundario: {
+    backgroundColor: Cores.acentoSombra,
+    height: 46,
+    alignItems: 'center',
+    borderRadius: Raio.md,
+    justifyContent: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: Cores.acento,
+    marginTop: Espaco.md,
+  },
+
+  secundarioDesabilitado: {
+    opacity: 0.5,
+  },
+
+  textoSecundario: {
+    fontWeight: Fonte.pesoSemibold,
+    fontSize: Fonte.tamanhoMd,
+    color: Cores.acento,
+  },
 });
 
 // ---------------------------------------------------------------------------
