@@ -24,3 +24,11 @@ export class ErroFonteConfiguracao extends Error {
     this.name = 'ErroFonteConfiguracao';
   }
 }
+
+/** O limite de requisições merece uma mensagem acionável para o jogador. */
+export class ErroFonteLimite extends Error {
+  constructor(public readonly fonte: string) {
+    super(`A fonte ${fonte} atingiu o limite de requisições.`);
+    this.name = 'ErroFonteLimite';
+  }
+}

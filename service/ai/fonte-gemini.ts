@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ErroFonteConfiguracao,
+  ErroFonteLimite,
   type Consulta,
   type Fonte,
   type TransporteHttp,
@@ -8,7 +9,9 @@ import {
 import { CONTRATO_VERSAO, RespostaIaSchema, type Resultado } from './schema';
 
 const MODEL = 'gemini-3.6-flash';
-const TEMPO_LIMITE_MS = 15_000;
+const TEMPO_LIMITE_MS = 45_000;
+const MAXIMO_TENTATIVAS = 3;
+const ESPERA_INICIAL_MS = 1_000;
 
 interface FonteGeminiOpcoes {
   apiKey: string;
@@ -60,6 +63,20 @@ Liste as configurações gráficas do jogo "${consulta.jogo}" na ordem exata em 
   `.trim();
 }
 
+function deveTentarNovamente(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+function calcularEspera(tentativa: number): number {
+  const esperaBase = Math.min(ESPERA_INICIAL_MS * 2 ** tentativa, 8_000);
+  const jitter = Math.round(Math.random() * esperaBase * 0.2);
+  return esperaBase + jitter;
+}
+
+function esperar(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Cria o elo Gemini; o transporte é recebido por injeção para exercitar a fonte isoladamente. */
 export function criarFonteGemini({
   apiKey,
@@ -73,11 +90,12 @@ export function criarFonteGemini({
     async buscar(consulta) {
       if (usarResultadoExemplo) return criarResultadoExemplo();
 
-      const controlador = new AbortController();
-      const temporizador = setTimeout(() => controlador.abort(), TEMPO_LIMITE_MS);
+      for (let tentativa = 0; tentativa < MAXIMO_TENTATIVAS; tentativa += 1) {
+        const controlador = new AbortController();
+        const temporizador = setTimeout(() => controlador.abort(), TEMPO_LIMITE_MS);
 
-      try {
-        const response = await transporte(url, {
+        try {
+          const response = await transporte(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: controlador.signal,
@@ -101,6 +119,11 @@ export function criarFonteGemini({
           if (response.status === 400 || response.status === 401) {
             throw new ErroFonteConfiguracao('gemini', response.status);
           }
+          if (deveTentarNovamente(response.status) && tentativa < MAXIMO_TENTATIVAS - 1) {
+            await esperar(calcularEspera(tentativa));
+            continue;
+          }
+          if (response.status === 429) throw new ErroFonteLimite('gemini');
           return null;
         }
 
@@ -132,13 +155,16 @@ export function criarFonteGemini({
           geradoEm: new Date().toISOString(),
           versaoContrato: CONTRATO_VERSAO,
         };
-      } catch (erro) {
-        if (erro instanceof ErroFonteConfiguracao) throw erro;
-        console.error('[fonteGemini] Falha ao consultar o Gemini:', erro);
-        return null;
-      } finally {
-        clearTimeout(temporizador);
+        } catch (erro) {
+          if (erro instanceof ErroFonteConfiguracao || erro instanceof ErroFonteLimite) throw erro;
+          console.error('[fonteGemini] Falha ao consultar o Gemini:', erro);
+          return null;
+        } finally {
+          clearTimeout(temporizador);
+        }
       }
+
+      return null;
     },
   };
 }
