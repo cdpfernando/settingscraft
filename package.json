@@ -11,8 +11,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^4.0.35",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@stardazed/streams-text-encoding": "^1.0.2",
+    "@ungap/structured-clone": "^1.4.0",
     "ai": "^7.0.85",
     "expo": "~54.0.36",
     "expo-constants": "~18.0.13",
@@ -36,6 +39,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@types/ungap__structured-clone": "^1.2.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"

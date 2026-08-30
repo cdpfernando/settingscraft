@@ -3,6 +3,7 @@ import {
   criarRepositorioCacheLocal,
 } from './cache-local';
 import { criarFonteGemini } from './fonte-gemini';
+import { criarFonteGroq } from './fonte-groq';
 import type { Consulta, Fonte } from './fonte';
 import { resolverConsulta, type ConsultaResultado } from './resolvedor';
 
@@ -14,6 +15,7 @@ export interface OpcoesConsulta {
 }
 
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 const usarResultadoExemplo = process.env.EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO === 'true';
 
 /**
@@ -35,6 +37,14 @@ export function montarFontes(
   } else {
     fontesProvedores.push(
       criarFonteGemini({ apiKey, transporte: fetch }),
+    );
+  }
+
+  if (!groqApiKey) {
+    console.warn('[montarFontes] EXPO_PUBLIC_GROQ_API_KEY não está definida; Groq omitido da cadeia.');
+  } else {
+    fontesProvedores.push(
+      criarFonteGroq({ apiKey: groqApiKey, transporte: fetch }),
     );
   }
 

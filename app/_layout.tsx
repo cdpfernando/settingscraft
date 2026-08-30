@@ -1,3 +1,5 @@
+import '@/polyfills';
+
 import { Cores } from '@/styles';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

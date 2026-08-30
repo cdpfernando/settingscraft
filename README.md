@@ -13,6 +13,7 @@ O jogador informa o jogo, placa de vídeo, processador, memória RAM e resoluç�
 - Node.js ≥ 20
 - Expo CLI (`npm install -g expo-cli`) ou use `npx expo` diretamente
 - Conta no [Google AI Studio](https://aistudio.google.com/) para obter a chave do Gemini
+- Conta no [Groq Console](https://console.groq.com/) para obter a chave do Groq (opcional — fallback da cadeia)
 
 ### 2. Instalar dependências
 
@@ -26,9 +27,12 @@ Crie `.env.local` na raiz do projeto (não é versionado):
 
 ```
 EXPO_PUBLIC_GEMINI_API_KEY=sua_chave_aqui
+EXPO_PUBLIC_GROQ_API_KEY=sua_chave_aqui
 ```
 
 > **Nota:** `EXPO_PUBLIC_*` é embutido no bundle em build time. A chave fica exposta no cliente — limitação conhecida e aceita nesta fase. Uma rota de backend/proxy resolve isso depois.
+
+`EXPO_PUBLIC_GROQ_API_KEY` é opcional: sem ela, o Groq simplesmente não entra na cadeia — nada falha em runtime.
 
 Opcional, para iterar layout sem gastar quota nem esperar a chamada de rede:
 
@@ -99,8 +103,10 @@ interface Fonte {
 
 Um resolvedor percorre a cadeia parando na primeira fonte que responder. A composição da cadeia acontece na borda da aplicação (não dentro do resolvedor), o que permite testá-la com fontes falsas.
 
-**Cadeia atual:** cache local → Gemini  
+**Cadeia atual:** cache local → Gemini → Groq  
 **Cadeia planejada:** cache local → cache compartilhado (API) → Gemini → Groq
+
+O elo do Groq entra pelo [AI SDK](https://ai-sdk.dev/), que exige polyfills do Expo (`structuredClone`, `TextEncoderStream`, `TextDecoderStream`) — importados uma única vez em [`polyfills.ts`](polyfills.ts), na raiz.
 
 ### Resultado tipado
 

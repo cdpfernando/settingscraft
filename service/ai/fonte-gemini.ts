@@ -2,10 +2,10 @@ import { z } from 'zod';
 import {
   ErroFonteConfiguracao,
   ErroFonteLimite,
-  type Consulta,
   type Fonte,
   type TransporteHttp,
 } from './fonte';
+import { criarPrompt, INSTRUCAO_SISTEMA } from './prompt';
 import { CONTRATO_VERSAO, RespostaIaSchema, type Resultado } from './schema';
 
 const MODEL = 'gemini-3.6-flash';
@@ -51,18 +51,6 @@ function criarResultadoExemplo(): Resultado {
   };
 }
 
-function criarPrompt(consulta: Consulta): string {
-  return `
-Jogo: ${consulta.jogo}
-Placa de vídeo: ${consulta.placaVideo}
-Processador: ${consulta.processador}
-Memória RAM: ${consulta.memoria}
-Resolução desejada: ${consulta.resolucao}
-
-Liste as configurações gráficas do jogo "${consulta.jogo}" na ordem exata em que aparecem no menu gráfico do jogo, recomendando os valores ideais para este hardware rodar em ${consulta.resolucao}.
-  `.trim();
-}
-
 function deveTentarNovamente(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
@@ -101,9 +89,7 @@ export function criarFonteGemini({
           signal: controlador.signal,
           body: JSON.stringify({
             system_instruction: {
-              parts: [{
-                text: 'Você é um especialista em benchmark e otimização de jogos para PC. Responda exclusivamente com o JSON estruturado definido pelo schema fornecido, sem texto fora dele. Liste as configurações na ordem exata em que aparecem no menu gráfico do jogo informado, cada uma com uma justificativa de até 10 palavras.',
-              }],
+              parts: [{ text: INSTRUCAO_SISTEMA }],
             },
             contents: [{ parts: [{ text: criarPrompt(consulta) }] }],
             generationConfig: {
