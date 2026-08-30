@@ -8,10 +8,10 @@ Um selo discreto informa de onde veio a recomendação e quando foi gerada, para
 
 **Status:** ready-for-agent
 
-- [ ] Configurações renderizadas na ordem recebida, sem reordenação
-- [ ] Valor recomendado visualmente destacado em cada linha
-- [ ] Justificativa curta legível em cada linha
-- [ ] FPS estimado apresentado com a resolução consultada
-- [ ] Selo de origem exibe `fonte` e `geradoEm` de forma discreta
-- [ ] Layout verificado com o resultado de exemplo, sem consumir quota
-- [ ] Legível em ambiente escuro, usando os tokens do design system
+- [x] Configurações renderizadas na ordem recebida, sem reordenação
+- [x] Valor recomendado visualmente destacado em cada linha
+- [x] Justificativa curta legível em cada linha
+- [x] FPS estimado apresentado com a resolução consultada
+- [x] Selo de origem exibe `fonte` e `geradoEm` de forma discreta
+- [x] Layout verificado com o resultado de exemplo, sem consumir quota
+- [x] Legível em ambiente escuro, usando os tokens do design system

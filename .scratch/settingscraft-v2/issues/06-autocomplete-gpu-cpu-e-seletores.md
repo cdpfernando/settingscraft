@@ -6,11 +6,15 @@ Além da usabilidade, é isto que elimina a maior parte da variação de digita�
 
 **Blocked by:** 05 — Estados do formulário.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Dataset local de GPUs e CPUs versionado no repositório, sem chamada de rede
-- [ ] Autocomplete filtra enquanto o jogador digita, em placa de vídeo e processador
-- [ ] Valor digitado fora da lista é aceito e enviado
-- [ ] RAM e resolução são seletores de opções conhecidas
-- [ ] A validação do ticket 05 continua valendo para todos os campos
-- [ ] Componentes construídos sobre os primitivos do design system
+- [x] Dataset local de GPUs e CPUs versionado no repositório, sem chamada de rede
+- [x] Autocomplete filtra enquanto o jogador digita, em placa de vídeo e processador
+- [x] Valor digitado fora da lista é aceito e enviado
+- [x] RAM e resolução são seletores de opções conhecidas
+- [x] A validação do ticket 05 continua valendo para todos os campos
+- [x] Componentes construídos sobre os primitivos do design system
+
+## Comments
+
+Implementação validada pelo usuário.

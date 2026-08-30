@@ -246,10 +246,28 @@ export const cardStyles = StyleSheet.create({
     borderColor: Cores.acento,
   },
 
+  rotuloFps: {
+    color: Cores.textoSecundario,
+    fontSize: Fonte.tamanhoXs,
+    fontWeight: Fonte.pesoMedio,
+    marginBottom: Espaco.xs,
+  },
+
   textoFps: {
     fontSize: Fonte.tamanhoLg,
     fontWeight: Fonte.pesoBold,
     color: Cores.acento,
+  },
+
+  seloOrigem: {
+    alignItems: 'center',
+    marginTop: Espaco.md,
+  },
+
+  textoOrigem: {
+    color: Cores.textoTerciario,
+    fontSize: Fonte.tamanhoXs,
+    textAlign: 'center',
   },
 });
 

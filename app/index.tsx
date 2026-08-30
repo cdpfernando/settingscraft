@@ -33,6 +33,19 @@ const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as 
 type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
 type Erros = Partial<Record<CampoObrigatorio, string>>;
 
+function formatarDataGeracao(valor: string): string {
+  const data = new Date(valor);
+
+  if (Number.isNaN(data.getTime())) {
+    return 'data indisponível';
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(data);
+}
+
 // ---------------------------------------------------------------------------
 // Tela principal
 // ---------------------------------------------------------------------------
@@ -45,6 +58,7 @@ export default function Index() {
   const [erros, setErros] = useState<Erros>({});
   const [erroApi, setErroApi] = useState('');
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [resolucaoConsultada, setResolucaoConsultada] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const valores: Record<CampoObrigatorio, string> = { jogo, placaVideo, processador, memoria };
@@ -90,6 +104,7 @@ export default function Index() {
 
     if (resposta.ok) {
       setResultado(resposta.resultado);
+      setResolucaoConsultada(resolucao);
     } else {
       setErroApi(resposta.erro);
     }
@@ -208,9 +223,18 @@ export default function Index() {
 
           {!!resultado.fpsEstimado && (
             <View style={cardStyles.badgeFps}>
-              <Text style={cardStyles.textoFps}>🎮 {resultado.fpsEstimado}</Text>
+              <Text style={cardStyles.rotuloFps}>
+                FPS estimado em {resolucaoConsultada}
+              </Text>
+              <Text selectable style={cardStyles.textoFps}>{resultado.fpsEstimado}</Text>
             </View>
           )}
+
+          <View style={cardStyles.seloOrigem}>
+            <Text style={cardStyles.textoOrigem}>
+              Origem: {resultado.fonte} · Gerado em {formatarDataGeracao(resultado.geradoEm)}
+            </Text>
+          </View>
         </MotiView>
       )}
     </ScrollView>
