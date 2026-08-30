@@ -1,50 +1,146 @@
-# Welcome to your Expo app 👋
+# SettingsCraft
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App mobile (Expo / React Native) que usa IA para recomendar as **melhores configurações gráficas** de um jogo a partir do hardware do usuário.
 
-## Get started
+O jogador informa o jogo, placa de vídeo, processador, memória RAM e resolução alvo. O app consulta uma **cadeia de fontes** (cache local → Gemini → Groq) e devolve, na ordem do menu gráfico do jogo, cada configuração com o valor recomendado, uma justificativa curta e uma estimativa de FPS.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Como rodar
 
-2. Start the app
+### 1. Pré-requisitos
 
-   ```bash
-   npx expo start
-   ```
+- Node.js ≥ 20
+- Expo CLI (`npm install -g expo-cli`) ou use `npx expo` diretamente
+- Conta no [Google AI Studio](https://aistudio.google.com/) para obter a chave do Gemini
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### 2. Instalar dependências
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 3. Configurar variável de ambiente
 
-## Learn more
+Crie `.env.local` na raiz do projeto (não é versionado):
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+EXPO_PUBLIC_GEMINI_API_KEY=sua_chave_aqui
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+> **Nota:** `EXPO_PUBLIC_*` é embutido no bundle em build time. A chave fica exposta no cliente — limitação conhecida e aceita nesta fase. Uma rota de backend/proxy resolve isso depois.
 
-## Join the community
+### 4. Iniciar
 
-Join our community of developers creating universal apps.
+```bash
+npm start          # expo start (escolha Android / iOS / Web no menu)
+npm run android    # direto no emulador Android
+npm run ios        # direto no simulador iOS
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Framework | Expo SDK 54 |
+| Roteamento | expo-router v6 (file-based) |
+| Runtime | React Native 0.81, React 19, New Architecture |
+| IA | Gemini via REST direto (`fetch`) |
+| Animações | moti + react-native-reanimated |
+| Linguagem | TypeScript strict |
+
+---
+
+## Estrutura
+
+```
+app/
+  _layout.tsx          Stack raiz com cabeçalho do tema escuro
+  index.tsx            Tela de consulta
+  historico.tsx        (Bloco 4) Tela de histórico
+
+service/
+  ai/
+    generator.ts       Chamada ao Gemini (fetch direto)
+  chain/               (Bloco 4) Porta Fonte, resolvedor, fontes concretas
+  cache/               (Bloco 4) Repositório AsyncStorage
+
+styles/
+  tokens.ts            Cores, espaçamentos, tipografia, raios
+  primitives.ts        StyleSheets reutilizáveis que consomem os tokens
+  index.ts             Re-exporta tokens + primitivos como @/styles
+
+assets/
+  data/                (Bloco 3) Datasets locais de GPUs e CPUs para autocomplete
+```
+
+---
+
+## Arquitetura
+
+### Cadeia de fontes
+
+Toda origem de recomendação implementa a mesma interface `Fonte`:
+
+```ts
+interface Fonte {
+  nome: string;
+  buscar(consulta: Consulta): Promise<Resultado | null>;
+}
+```
+
+Um resolvedor percorre a cadeia parando na primeira fonte que responder. A composição da cadeia acontece na borda da aplicação (não dentro do resolvedor), o que permite testá-la com fontes falsas.
+
+**Cadeia atual:** cache local → Gemini  
+**Cadeia planejada:** cache local → cache compartilhado (API) → Gemini → Groq
+
+### Resultado tipado
+
+A resposta da IA é validada contra um schema Zod antes de chegar à tela:
+
+```ts
+interface Resultado {
+  configuracoes: { nome: string; valor: string; justificativa: string }[];
+  fpsEstimado: string;
+  fonte: string;      // nome da fonte que respondeu
+  geradoEm: string;   // ISO 8601
+  versaoContrato: number;
+}
+```
+
+### Cache
+
+Chave = campos da consulta normalizados + número de versão do contrato. Incrementar a versão invalida todo o cache antigo sem migração. Sem TTL — hardware e jogo não mudam sozinhos.
+
+---
+
+## Sequência de desenvolvimento
+
+| Bloco | Escopo |
+|---|---|
+| 1 — Fundação ✅ | Limpeza do template, design system em camadas, tema escuro, documentação |
+| 2 — Contrato tipado | Zod, schema derivado, Gemini em JSON, resultado de exemplo |
+| 3 — Interface | Autocomplete de GPU/CPU, validação, estados de loading, selo de origem |
+| 4 — Cadeia e persistência | Porta Fonte, resolvedor, cache local, histórico, navegação |
+| 5 — Fase distribuída | Groq (AI SDK), API FastAPI, elo HTTP |
+
+---
+
+## Decisões e limitações conhecidas
+
+- **Chave exposta no bundle:** `EXPO_PUBLIC_GEMINI_API_KEY` é inlined pelo Expo em build time. Aceitável em fase de desenvolvimento; a solução é mover as chamadas para um backend/proxy.
+- **Sem testes automatizados nesta fase:** adiados deliberadamente. O código nasce com o *seam* correto (resolvedor da cadeia aceita injeção de fontes) para facilitar a adição posterior.
+- **Backend como cache, não proxy:** o app continua chamando a IA diretamente. O backend compartilha resultados entre dispositivos e reduz consumo de quota, mas não esconde a chave.
+
+---
+
+## Lint e tipos
+
+```bash
+npm run lint       # eslint via expo lint
+npx tsc --noEmit   # verificação de tipos
+```
+
+Ambos devem passar limpos antes de qualquer PR.
