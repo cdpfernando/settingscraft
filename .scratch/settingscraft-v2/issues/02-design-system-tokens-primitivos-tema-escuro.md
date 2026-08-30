@@ -8,11 +8,11 @@ A documentação de convenções do projeto descreve hoje a convenção de folha
 
 **Blocked by:** 01 — Limpeza do template e portões de qualidade.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Tokens de cor, espaçamento, tipografia e raio declarados num lugar só
-- [ ] Primitivos reutilizáveis cobrem os elementos que a tela usa hoje
-- [ ] Tema escuro único aplicado; nenhuma superfície clara sobrou
-- [ ] A tela atual renderiza pelos tokens e primitivos, sem estilo inline e sem folha achatada
-- [ ] `AGENTS.md` e `CLAUDE.md` descrevem a nova camada de estilo, sem menção à convenção antiga
-- [ ] Lint e verificação de tipos limpos
+- [x] Tokens de cor, espaçamento, tipografia e raio declarados num lugar só
+- [x] Primitivos reutilizáveis cobrem os elementos que a tela usa hoje
+- [x] Tema escuro único aplicado; nenhuma superfície clara sobrou
+- [x] A tela atual renderiza pelos tokens e primitivos, sem estilo inline e sem folha achatada
+- [x] `AGENTS.md` e `CLAUDE.md` descrevem a nova camada de estilo, sem menção à convenção antiga
+- [x] Lint e verificação de tipos limpos

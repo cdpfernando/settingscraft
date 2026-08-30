@@ -27,6 +27,7 @@ export const Cores = {
 
   // Estado
   erro: '#ff5c72',
+  erroSombra: 'rgba(255, 92, 114, 0.15)',
 
   // Utilitários
   transparente: 'transparent',

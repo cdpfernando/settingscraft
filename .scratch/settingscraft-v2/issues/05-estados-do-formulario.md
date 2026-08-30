@@ -4,11 +4,15 @@
 
 **Blocked by:** 04 — Contrato tipado.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Campo obrigatório vazio é sinalizado na interface e bloqueia o envio
-- [ ] Nenhuma chamada à IA acontece com formulário inválido
-- [ ] Botão desabilitado enquanto a consulta está em andamento
-- [ ] Indicador de carregamento visível durante a chamada
-- [ ] Toques repetidos no botão não geram chamadas duplicadas
-- [ ] Estados usam os tokens e primitivos do design system
+- [x] Campo obrigatório vazio é sinalizado na interface e bloqueia o envio
+- [x] Nenhuma chamada à IA acontece com formulário inválido
+- [x] Botão desabilitado enquanto a consulta está em andamento
+- [x] Indicador de carregamento visível durante a chamada
+- [x] Toques repetidos no botão não geram chamadas duplicadas
+- [x] Estados usam os tokens e primitivos do design system
+
+## Comments
+
+Implementado em `app/index.tsx`: `validarFormulario()` marca `erros` por campo (jogo, placa de vídeo, processador, memória) e impede a chamada; `editarCampo()` limpa o erro daquele campo ao digitar. `gerarConfiguracoes()` tem guarda `if (isLoading) return` além do botão desabilitado. `ActivityIndicator` + texto "Gerando..." dentro do botão via `layoutStyles.row`. Novos primitivos: `inputStyles.container/campoErro/mensagemErro` e `alertaStyles.erro/textoErro` (consome novo token `Cores.erroSombra`).

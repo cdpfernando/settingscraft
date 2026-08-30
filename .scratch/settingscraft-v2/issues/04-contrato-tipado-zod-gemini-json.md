@@ -20,13 +20,17 @@ Inclui um resultado de exemplo embutido atrás de flag, para ajustar layout sem 
 
 **Blocked by:** 02 — Design system: tokens, primitivos e tema escuro.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Schema Zod é a única declaração do contrato; nenhum JSON Schema escrito à mão
-- [ ] O JSON Schema enviado ao Gemini é derivado do Zod em runtime
-- [ ] Gemini responde JSON estruturado, validado antes de chegar à tela
-- [ ] O parser por travessão e o formato de texto do system prompt são removidos
-- [ ] `Resultado` completo, com `fonte`, `geradoEm` e `versaoContrato` preenchidos
-- [ ] Resposta que não valida vira erro visível ao usuário, não tela vazia
-- [ ] Resultado de exemplo disponível atrás de flag, sem chamada de rede
-- [ ] Lint e verificação de tipos limpos
+- [x] Schema Zod é a única declaração do contrato; nenhum JSON Schema escrito à mão
+- [x] O JSON Schema enviado ao Gemini é derivado do Zod em runtime
+- [x] Gemini responde JSON estruturado, validado antes de chegar à tela
+- [x] O parser por travessão e o formato de texto do system prompt são removidos
+- [x] `Resultado` completo, com `fonte`, `geradoEm` e `versaoContrato` preenchidos
+- [x] Resposta que não valida vira erro visível ao usuário, não tela vazia
+- [x] Resultado de exemplo disponível atrás de flag, sem chamada de rede
+- [x] Lint e verificação de tipos limpos
+
+## Comments
+
+Implementado: `service/ai/schema.ts` declara `RespostaIaSchema` (Zod) como fonte única; `service/ai/generator.ts` deriva o JSON Schema do Gemini via `z.toJSONSchema` + `paraSchemaGemini` (filtra `$schema`/`additionalProperties`, que o subconjunto OpenAPI 3.0 do Gemini não aceita). `createOptmizedSetting()` passa a retornar `ConsultaResultado` (`{ ok: true, resultado } | { ok: false, erro }`) em vez de string — contrato documentado em `AGENTS.md`. Flag `EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true` retorna um `Resultado` fixo sem rede.

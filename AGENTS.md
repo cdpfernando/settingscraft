@@ -20,7 +20,8 @@ Não confie em memória de SDKs antigos. Padrões que mudaram e aparecem aqui:
 ```
 app/                  Rotas (expo-router). _layout.tsx = Stack raiz com tema escuro; index.tsx = tela de consulta
 service/ai/           Integração com a IA
-  generator.ts        createOptmizedSetting(): chama a API do Gemini via fetch e retorna texto puro
+  generator.ts        createOptmizedSetting(): chama a API do Gemini via fetch, valida e retorna `ConsultaResultado`
+  schema.ts            Zod: fonte única de verdade do contrato `Resultado`/`RespostaIa`
 styles/
   tokens.ts           Fonte única de verdade: cores, espaçamentos, tipografia, raios
   primitives.ts       StyleSheets reutilizáveis que consomem os tokens
@@ -29,27 +30,22 @@ styles/
 
 Alias de import: `@/*` aponta para a raiz do projeto (`tsconfig.json`).
 
-## Contrato entre o prompt e o parser — não quebre
+## Contrato tipado — Zod é a fonte única de verdade
 
-O ponto mais frágil do app: `service/ai/generator.ts` instrui o modelo a responder **texto puro, sem markdown**, uma linha por configuração:
+`service/ai/schema.ts` declara `RespostaIaSchema` (Zod) uma única vez. `service/ai/generator.ts` deriva o JSON Schema enviado ao Gemini a partir desse mesmo schema em runtime (`z.toJSONSchema`, filtrado em `paraSchemaGemini` para o subconjunto de OpenAPI 3.0 que o Gemini aceita) — **nunca escreva um JSON Schema à mão em paralelo**: duas declarações do mesmo contrato divergem, e a divergência só aparece quando o fallback dispara.
 
-```
-[Nome da configuração]: [Valor recomendado] — [Justificativa em até 10 palavras]
+A resposta da IA chega como JSON estruturado e é validada contra `RespostaIaSchema` antes de virar `Resultado`. **Alterar o schema sem que a IA e a tela concordem quebra a validação, não a renderização silenciosa** — o request muda o formato pedido ao Gemini e o parse ao mesmo tempo, então os dois lados do contrato sempre viajam juntos.
 
-FPS estimado: [valor ou faixa] a [resolução]
-```
-
-`parseResposta()` em `app/index.tsx` faz o parse exatamente desse formato (split por `:`, depois pelo travessão `—`, e a linha que começa com `fps estimado`). **Alterar o system prompt sem alterar o parser (ou vice-versa) quebra a renderização em silêncio** — a tela cai no fallback de texto cru. Sempre altere os dois juntos.
-
-Observação: o separador é o travessão `—` (em dash, U+2014), não hífen.
+`Resultado` nasce completo: `configuracoes`, `fpsEstimado` vêm da IA; `fonte`, `geradoEm` e `versaoContrato` são preenchidos por `generator.ts` na resposta.
 
 ## IA
 
 - Provedor: Gemini via REST direto (`generativelanguage.googleapis.com/v1beta`), com `fetch`. Não há SDK no caminho de execução.
 - Modelo em `MODEL` no topo de `service/ai/generator.ts`.
 - Chave: `EXPO_PUBLIC_GEMINI_API_KEY` em `.env.local` (não versionado).
-- `createOptmizedSetting()` **nunca lança**: erros viram string amigável para a UI, com `console.error` para diagnóstico. Mantenha esse contrato — a tela não tem tratamento de exceção.
+- `createOptmizedSetting()` **nunca lança**: retorna sempre `ConsultaResultado` (`{ ok: true, resultado }` ou `{ ok: false, erro }`), com `console.error` para diagnóstico. Mantenha esse contrato — a tela não tem tratamento de exceção.
 - 429 tem mensagem própria (limite de requisições).
+- `EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true` em `.env.local` faz `createOptmizedSetting()` devolver um `Resultado` fixo sem chamar a rede — útil para iterar layout sem gastar quota.
 
 Pontos conhecidos, a resolver quando o escopo permitir:
 - `EXPO_PUBLIC_*` é embutido no bundle, ou seja, **a chave do Gemini fica exposta no cliente**. Para produção, mover a chamada para um backend/proxy.
@@ -76,6 +72,6 @@ npm run lint     # expo lint (eslint-config-expo)
 
 ## Antes de entregar
 
-1. `npm run lint` limpo.
-2. Se mexeu no prompt ou no parser: conferiu que os dois continuam casados.
+1. `npm run lint` e `npx tsc --noEmit` limpos.
+2. Se mexeu no schema Zod ou no prompt do Gemini: conferiu que os dois continuam casados.
 3. Sem chaves ou segredos em código versionado.

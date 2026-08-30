@@ -1,7 +1,10 @@
 import { createOptmizedSetting } from '@/service/ai/generator';
+import type { Resultado } from '@/service/ai/schema';
 import {
+  alertaStyles,
   botaoStyles,
   cardStyles,
+  Cores,
   inputStyles,
   layoutStyles,
   resolucaoStyles,
@@ -10,6 +13,7 @@ import {
 import { MotiView } from 'moti';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   Text,
   TextInput,
@@ -24,42 +28,9 @@ const RESOLUCOES = [
   '3840x2160 (4K)',
 ];
 
-// ---------------------------------------------------------------------------
-// Parser — mantido intacto; será substituído no Bloco 2 por dados estruturados
-// ---------------------------------------------------------------------------
-function parseResposta(text: string) {
-  const linhas = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const configs: { nome: string; valor: string; justificativa: string }[] = [];
-  let fps = '';
-
-  for (const linha of linhas) {
-    if (linha.toLowerCase().startsWith('fps estimado')) {
-      fps = linha.replace(/^fps estimado:\s*/i, '').trim();
-      continue;
-    }
-    const separador = linha.indexOf(':');
-    if (separador === -1) continue;
-
-    const nome = linha.slice(0, separador).trim();
-    const resto = linha.slice(separador + 1).trim();
-    const dashIdx = resto.indexOf('—');
-
-    if (dashIdx !== -1) {
-      configs.push({
-        nome,
-        valor: resto.slice(0, dashIdx).trim(),
-        justificativa: resto.slice(dashIdx + 1).trim(),
-      });
-    } else {
-      configs.push({ nome, valor: resto, justificativa: '' });
-    }
-  }
-
-  return { configs, fps };
-}
+const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as const;
+type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
+type Erros = Partial<Record<CampoObrigatorio, string>>;
 
 // ---------------------------------------------------------------------------
 // Tela principal
@@ -70,24 +41,58 @@ export default function Index() {
   const [processador, setProcessador] = useState('');
   const [memoria, setMemoria] = useState('');
   const [resolucao, setResolucao] = useState(RESOLUCOES[1]);
-  const [resposta, setResposta] = useState('');
+  const [erros, setErros] = useState<Erros>({});
+  const [erroApi, setErroApi] = useState('');
+  const [resultado, setResultado] = useState<Resultado | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const valores: Record<CampoObrigatorio, string> = { jogo, placaVideo, processador, memoria };
+
+  const editarCampo = (campo: CampoObrigatorio, valor: string) => {
+    if (campo === 'jogo') setJogo(valor);
+    else if (campo === 'placaVideo') setPlacaVideo(valor);
+    else if (campo === 'processador') setProcessador(valor);
+    else setMemoria(valor);
+
+    if (erros[campo]) {
+      setErros((atual) => ({ ...atual, [campo]: undefined }));
+    }
+  };
+
+  const validarFormulario = () => {
+    const novosErros: Erros = {};
+    for (const campo of CAMPOS_OBRIGATORIOS) {
+      if (!valores[campo].trim()) {
+        novosErros[campo] = 'Campo obrigatório';
+      }
+    }
+    setErros(novosErros);
+    return Object.keys(novosErros).length === 0;
+  };
+
   const gerarConfiguracoes = async () => {
-    setResposta('');
+    if (isLoading) return;
+    if (!validarFormulario()) return;
+
+    setResultado(null);
+    setErroApi('');
     setIsLoading(true);
-    const resultado = await createOptmizedSetting({
+
+    const resposta = await createOptmizedSetting({
       jogo,
       placaVideo,
       processador,
       memoria,
       resolucao,
     });
-    setResposta(resultado);
+
+    if (resposta.ok) {
+      setResultado(resposta.resultado);
+    } else {
+      setErroApi(resposta.erro);
+    }
     setIsLoading(false);
   };
-
-  const { configs, fps } = parseResposta(resposta);
 
   return (
     <ScrollView contentContainerStyle={layoutStyles.telaScroll}>
@@ -97,40 +102,52 @@ export default function Index() {
       </Text>
 
       <Text style={textoStyles.label}>Jogo</Text>
-      <TextInput
-        value={jogo}
-        placeholder="ex: Cyberpunk 2077"
-        placeholderTextColor="#606080"
-        onChangeText={setJogo}
-        style={inputStyles.campo}
-      />
+      <View style={inputStyles.container}>
+        <TextInput
+          value={jogo}
+          placeholder="ex: Cyberpunk 2077"
+          placeholderTextColor={Cores.textoTerciario}
+          onChangeText={(v) => editarCampo('jogo', v)}
+          style={[inputStyles.campo, erros.jogo && inputStyles.campoErro]}
+        />
+        {!!erros.jogo && <Text style={inputStyles.mensagemErro}>{erros.jogo}</Text>}
+      </View>
 
       <Text style={textoStyles.label}>Placa de vídeo</Text>
-      <TextInput
-        value={placaVideo}
-        placeholder="ex: RTX 3060"
-        placeholderTextColor="#606080"
-        onChangeText={setPlacaVideo}
-        style={inputStyles.campo}
-      />
+      <View style={inputStyles.container}>
+        <TextInput
+          value={placaVideo}
+          placeholder="ex: RTX 3060"
+          placeholderTextColor={Cores.textoTerciario}
+          onChangeText={(v) => editarCampo('placaVideo', v)}
+          style={[inputStyles.campo, erros.placaVideo && inputStyles.campoErro]}
+        />
+        {!!erros.placaVideo && <Text style={inputStyles.mensagemErro}>{erros.placaVideo}</Text>}
+      </View>
 
       <Text style={textoStyles.label}>Processador</Text>
-      <TextInput
-        value={processador}
-        placeholder="ex: Intel i7-12700K"
-        placeholderTextColor="#606080"
-        onChangeText={setProcessador}
-        style={inputStyles.campo}
-      />
+      <View style={inputStyles.container}>
+        <TextInput
+          value={processador}
+          placeholder="ex: Intel i7-12700K"
+          placeholderTextColor={Cores.textoTerciario}
+          onChangeText={(v) => editarCampo('processador', v)}
+          style={[inputStyles.campo, erros.processador && inputStyles.campoErro]}
+        />
+        {!!erros.processador && <Text style={inputStyles.mensagemErro}>{erros.processador}</Text>}
+      </View>
 
       <Text style={textoStyles.label}>Memória RAM</Text>
-      <TextInput
-        value={memoria}
-        placeholder="ex: 16GB DDR4"
-        placeholderTextColor="#606080"
-        onChangeText={setMemoria}
-        style={inputStyles.campo}
-      />
+      <View style={inputStyles.container}>
+        <TextInput
+          value={memoria}
+          placeholder="ex: 16GB DDR4"
+          placeholderTextColor={Cores.textoTerciario}
+          onChangeText={(v) => editarCampo('memoria', v)}
+          style={[inputStyles.campo, erros.memoria && inputStyles.campoErro]}
+        />
+        {!!erros.memoria && <Text style={inputStyles.mensagemErro}>{erros.memoria}</Text>}
+      </View>
 
       <Text style={textoStyles.label}>Resolução alvo</Text>
       <View style={resolucaoStyles.container}>
@@ -163,12 +180,23 @@ export default function Index() {
         onPress={gerarConfiguracoes}
         disabled={isLoading}
       >
-        <Text style={botaoStyles.textoPrimario}>
-          {isLoading ? 'Gerando...' : 'Gerar Configurações'}
-        </Text>
+        {isLoading ? (
+          <View style={layoutStyles.row}>
+            <ActivityIndicator color={Cores.textoInverso} />
+            <Text style={botaoStyles.textoPrimario}>Gerando...</Text>
+          </View>
+        ) : (
+          <Text style={botaoStyles.textoPrimario}>Gerar Configurações</Text>
+        )}
       </TouchableOpacity>
 
-      {!!resposta && (
+      {!!erroApi && (
+        <View style={alertaStyles.erro}>
+          <Text style={alertaStyles.textoErro}>{erroApi}</Text>
+        </View>
+      )}
+
+      {!!resultado && (
         <MotiView
           style={cardStyles.container}
           from={{ opacity: 0, translateY: 60 }}
@@ -177,35 +205,29 @@ export default function Index() {
         >
           <Text style={textoStyles.tituloCard}>⚙️ Configurações — {jogo}</Text>
 
-          {configs.length > 0 ? (
-            configs.map((item, index) => (
-              <MotiView
-                key={index}
-                style={cardStyles.linhaConfig}
-                from={{ opacity: 0, translateX: -20 }}
-                animate={{ opacity: 1, translateX: 0 }}
-                transition={{ type: 'timing', duration: 300, delay: index * 60 }}
-              >
-                <View style={layoutStyles.rowSpaceBetween}>
-                  <Text style={cardStyles.nomeConfig}>{item.nome}</Text>
-                  <View style={cardStyles.badgeValor}>
-                    <Text style={cardStyles.textoValor}>{item.valor}</Text>
-                  </View>
+          {resultado.configuracoes.map((item, index) => (
+            <MotiView
+              key={index}
+              style={cardStyles.linhaConfig}
+              from={{ opacity: 0, translateX: -20 }}
+              animate={{ opacity: 1, translateX: 0 }}
+              transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+            >
+              <View style={layoutStyles.rowSpaceBetween}>
+                <Text style={cardStyles.nomeConfig}>{item.nome}</Text>
+                <View style={cardStyles.badgeValor}>
+                  <Text style={cardStyles.textoValor}>{item.valor}</Text>
                 </View>
-                {!!item.justificativa && (
-                  <Text style={cardStyles.justificativa}>
-                    {item.justificativa}
-                  </Text>
-                )}
-              </MotiView>
-            ))
-          ) : (
-            <Text style={textoStyles.corpoCard}>{resposta}</Text>
-          )}
+              </View>
+              {!!item.justificativa && (
+                <Text style={cardStyles.justificativa}>{item.justificativa}</Text>
+              )}
+            </MotiView>
+          ))}
 
-          {!!fps && (
+          {!!resultado.fpsEstimado && (
             <View style={cardStyles.badgeFps}>
-              <Text style={cardStyles.textoFps}>🎮 {fps}</Text>
+              <Text style={cardStyles.textoFps}>🎮 {resultado.fpsEstimado}</Text>
             </View>
           )}
         </MotiView>

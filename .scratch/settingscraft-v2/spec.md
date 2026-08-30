@@ -64,7 +64,7 @@ O resultado vira dado estruturado e validado, não texto. Consultas anteriores f
 ### Contrato com a IA
 
 - A saída da IA passa a ser **JSON estruturado**, não texto livre. O parser artesanal por travessão é removido.
-- **Zod é a fonte única de verdade do schema.** O JSON Schema enviado ao Gemini é *derivado* do Zod em tempo de execução, nunca escrito à mão em paralelo — duas declarações do mesmo contrato divergem, e a divergência só se manifesta quando o fallback dispara.
+- **Zod é a fonte única de verdade do schema.** O JSON Schema enviado ao Gemini é *derivado* do Zod em tempo de execução, nunca escrito à mão em paralelo — duas declarações do mesmo contrato divergem, e a divergência só se manifesta quando o fallback dispara. 
 - **Gemini permanece em `fetch` direto** contra a REST API, com o schema derivado na configuração de geração.
 - **Groq entra via AI SDK**, que exige polyfills do Expo (`structuredClone`, `TextEncoderStream`, `TextDecoderStream`) importados na raiz. Os polyfills entram apenas no bloco do Groq, nunca antes.
 - `@ai-sdk/google` é removido das dependências — a decisão de manter o Gemini em `fetch` o torna permanentemente morto.

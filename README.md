@@ -30,6 +30,12 @@ EXPO_PUBLIC_GEMINI_API_KEY=sua_chave_aqui
 
 > **Nota:** `EXPO_PUBLIC_*` é embutido no bundle em build time. A chave fica exposta no cliente — limitação conhecida e aceita nesta fase. Uma rota de backend/proxy resolve isso depois.
 
+Opcional, para iterar layout sem gastar quota nem esperar a chamada de rede:
+
+```
+EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true
+```
+
 ### 4. Iniciar
 
 ```bash
@@ -121,7 +127,7 @@ Chave = campos da consulta normalizados + número de versão do contrato. Increm
 | Bloco | Escopo |
 |---|---|
 | 1 — Fundação ✅ | Limpeza do template, design system em camadas, tema escuro, documentação |
-| 2 — Contrato tipado | Zod, schema derivado, Gemini em JSON, resultado de exemplo |
+| 2 — Contrato tipado ✅ | Zod, schema derivado, Gemini em JSON, resultado de exemplo |
 | 3 — Interface | Autocomplete de GPU/CPU, validação, estados de loading, selo de origem |
 | 4 — Cadeia e persistência | Porta Fonte, resolvedor, cache local, histórico, navegação |
 | 5 — Fase distribuída | Groq (AI SDK), API FastAPI, elo HTTP |

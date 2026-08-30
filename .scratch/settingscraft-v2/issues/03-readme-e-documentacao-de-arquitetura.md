@@ -8,10 +8,10 @@ Escrito agora contra a arquitetura que a spec define; revisitado ao final das fa
 
 **Blocked by:** 02 — Design system: tokens, primitivos e tema escuro.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] README descreve o produto e o passo a passo de execução em máquina limpa
-- [ ] Instruções de variável de ambiente presentes; nenhuma chave versionada
-- [ ] Arquitetura alvo explicada: cadeia de fontes, contrato tipado com Zod, cache
-- [ ] Decisões e riscos aceitos registrados com a razão de cada um
-- [ ] Nenhum resto do boilerplate do `create-expo-app`
+- [x] README descreve o produto e o passo a passo de execução em máquina limpa
+- [x] Instruções de variável de ambiente presentes; nenhuma chave versionada
+- [x] Arquitetura alvo explicada: cadeia de fontes, contrato tipado com Zod, cache
+- [x] Decisões e riscos aceitos registrados com a razão de cada um
+- [x] Nenhum resto do boilerplate do `create-expo-app`

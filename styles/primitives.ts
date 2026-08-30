@@ -21,6 +21,7 @@ export const layoutStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Espaco.sm,
   },
 
   rowSpaceBetween: {
@@ -77,6 +78,12 @@ export const textoStyles = StyleSheet.create({
 // Input
 // ---------------------------------------------------------------------------
 export const inputStyles = StyleSheet.create({
+  /** Envolve label + campo + mensagem de erro; substitui a margem que antes vivia no campo. */
+  container: {
+    width: '100%',
+    marginBottom: Espaco.lg,
+  },
+
   campo: {
     width: '100%',
     height: 50,
@@ -85,9 +92,38 @@ export const inputStyles = StyleSheet.create({
     paddingHorizontal: Espaco.md,
     borderWidth: 1,
     borderColor: Cores.fundoBorda,
-    marginBottom: Espaco.lg,
     color: Cores.textoPrimario,
     fontSize: Fonte.tamanhoMd,
+  },
+
+  campoErro: {
+    borderColor: Cores.erro,
+  },
+
+  mensagemErro: {
+    fontSize: Fonte.tamanhoXs,
+    color: Cores.erro,
+    marginTop: Espaco.xs,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Alertas
+// ---------------------------------------------------------------------------
+export const alertaStyles = StyleSheet.create({
+  erro: {
+    backgroundColor: Cores.erroSombra,
+    borderRadius: Raio.md,
+    borderWidth: 1,
+    borderColor: Cores.erro,
+    padding: Espaco.md,
+    marginTop: Espaco.lg,
+  },
+
+  textoErro: {
+    color: Cores.erro,
+    fontSize: Fonte.tamanhoSm,
+    fontWeight: Fonte.pesoMedio,
   },
 });
 
