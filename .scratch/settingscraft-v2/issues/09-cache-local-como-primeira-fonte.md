@@ -8,13 +8,13 @@ Persistência em armazenamento chave-valor (AsyncStorage), atrás de um reposit�
 
 **Blocked by:** 08 — Porta Fonte, resolvedor e composição na borda.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Consulta repetida devolve resultado sem chamada de rede
-- [ ] O resultado da IA é gravado ao voltar da cadeia
-- [ ] Selo de origem distingue resultado salvo de resultado gerado
-- [ ] Chave normaliza os campos e inclui a versão do contrato
-- [ ] Duas consultas escritas de forma diferente (caixa, espaços) acertam o mesmo registro
-- [ ] Incrementar a versão do contrato deixa de acertar registros antigos, sem migração
-- [ ] Acesso ao armazenamento isolado atrás de um repositório; nenhuma tela conhece AsyncStorage
-- [ ] Resultado sobrevive ao fechamento do app
+- [x] Consulta repetida devolve resultado sem chamada de rede
+- [x] O resultado da IA é gravado ao voltar da cadeia
+- [x] Selo de origem distingue resultado salvo de resultado gerado
+- [x] Chave normaliza os campos e inclui a versão do contrato
+- [x] Duas consultas escritas de forma diferente (caixa, espaços) acertam o mesmo registro
+- [x] Incrementar a versão do contrato deixa de acertar registros antigos, sem migração
+- [x] Acesso ao armazenamento isolado atrás de um repositório; nenhuma tela conhece AsyncStorage
+- [x] Resultado sobrevive ao fechamento do app

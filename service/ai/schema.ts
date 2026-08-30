@@ -34,3 +34,10 @@ export interface Resultado extends RespostaIa {
   geradoEm: string;
   versaoContrato: number;
 }
+
+/** Schema do dado completo salvo no cache. Derivado do contrato canônico da IA. */
+export const ResultadoSchema = RespostaIaSchema.extend({
+  fonte: z.string(),
+  geradoEm: z.string(),
+  versaoContrato: z.literal(CONTRATO_VERSAO),
+});

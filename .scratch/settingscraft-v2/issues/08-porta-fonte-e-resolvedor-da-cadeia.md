@@ -17,7 +17,7 @@ Elo sem credencial configurada não entra na cadeia: a ausência é resolvida na
 
 **Blocked by:** 04 — Contrato tipado.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Interface `Fonte` declarada e implementada pelo elo do Gemini
 - [ ] Resolvedor percorre a cadeia em ordem e para na primeira fonte que devolve resultado
