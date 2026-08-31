@@ -1,77 +1,79 @@
 # SettingsCraft
 
-App mobile (Expo / React Native) que usa IA para recomendar as **melhores configurações gráficas** de um jogo a partir do hardware do usuário.
+Expo SDK 54. O jogador informa hardware e jogo. O app percorre cache local, cache compartilhado, Gemini e Groq, e devolve o menu gráfico preenchido.
 
-O usuário informa jogo, placa de vídeo, processador, memória RAM e resolução alvo. O app consulta o Gemini e devolve, na ordem exata do menu gráfico do jogo, cada configuração com o valor recomendado, uma justificativa curta e uma estimativa de FPS.
+## Expo mudou. Leia a doc da versão certa.
 
-## Regra crítica: Expo MUDOU
+SDK 54, expo-router v6, React Native 0.81, React 19.1, New Architecture. Antes de escrever código de Expo ou React Native, abra:
 
-Este projeto usa **Expo SDK 54** com **expo-router v6**, React Native 0.81, React 19.1 e a New Architecture.
-Antes de escrever qualquer código de Expo/React Native, leia a doc versionada exata:
 https://docs.expo.dev/versions/v54.0.0/
 
-Não confie em memória de SDKs antigos. Padrões que mudaram e aparecem aqui:
-- Roteamento é file-based via `expo-router` (`app/`), **não** React Navigation manual.
-- `newArchEnabled: true`, `experiments.typedRoutes` e `experiments.reactCompiler` estão ligados em `app.json`.
-- Variáveis de ambiente do cliente precisam do prefixo `EXPO_PUBLIC_` (inlined no bundle em build time).
+Padrões que já pegaram gente aqui:
+
+- Roteamento é file-based em `app/`. Não é React Navigation na mão.
+- `newArchEnabled`, `experiments.typedRoutes` e `experiments.reactCompiler` estão ligados em `app.json`.
+- Variável de ambiente do cliente precisa do prefixo `EXPO_PUBLIC_`. O Expo embute no bundle em build time.
 
 ## Estrutura
 
 ```
-app/                  Rotas (expo-router). _layout.tsx = Stack raiz com tema escuro; index.tsx = tela de consulta
-service/ai/           Integração com a IA
-  generator.ts        createOptmizedSetting(): chama a API do Gemini via fetch, valida e retorna `ConsultaResultado`
-  schema.ts            Zod: fonte única de verdade do contrato `Resultado`/`RespostaIa`
+app/                  rotas. _layout.tsx é o Stack; index.tsx a consulta; historico.tsx o histórico
+service/ai/
+  fonte.ts            Consulta, Fonte, TransporteHttp, erros da cadeia
+  resolvedor.ts       percorre as fontes, para na primeira que responder
+  generator.ts        monta a cadeia e expõe createOptmizedSetting()
+  schema.ts           Zod do contrato Resultado / RespostaIa
+  prompt.ts           instrução de sistema e prompt, iguais para Gemini e Groq
 styles/
-  tokens.ts           Fonte única de verdade: cores, espaçamentos, tipografia, raios
-  primitives.ts       StyleSheets reutilizáveis que consomem os tokens
-  index.ts            Re-exporta tokens + primitivos como @/styles (ponto de entrada público)
+  tokens.ts           cores, espaçamentos, tipografia, raios
+  primitives.ts       StyleSheets que consomem os tokens
+  index.ts            import via @/styles
 ```
 
-Alias de import: `@/*` aponta para a raiz do projeto (`tsconfig.json`).
+Alias `@/*` aponta para a raiz (`tsconfig.json`).
 
-## Contrato tipado — Zod é a fonte única de verdade
+## Schema Zod
 
-`service/ai/schema.ts` declara `RespostaIaSchema` (Zod) uma única vez. `service/ai/generator.ts` deriva o JSON Schema enviado ao Gemini a partir desse mesmo schema em runtime (`z.toJSONSchema`, filtrado em `paraSchemaGemini` para o subconjunto de OpenAPI 3.0 que o Gemini aceita) — **nunca escreva um JSON Schema à mão em paralelo**: duas declarações do mesmo contrato divergem, e a divergência só aparece quando o fallback dispara.
+`schema.ts` declara `RespostaIaSchema` uma vez. `fonte-gemini.ts` deriva o JSON Schema do Gemini disso (`z.toJSONSchema`, filtrado em `paraSchemaGemini`). Não escreva um JSON Schema paralelo. Os dois divergem, e a divergência só aparece quando o parse falha.
 
-A resposta da IA chega como JSON estruturado e é validada contra `RespostaIaSchema` antes de virar `Resultado`. **Alterar o schema sem que a IA e a tela concordem quebra a validação, não a renderização silenciosa** — o request muda o formato pedido ao Gemini e o parse ao mesmo tempo, então os dois lados do contrato sempre viajam juntos.
+A resposta da IA passa por `RespostaIaSchema` antes de virar `Resultado`. `configuracoes` e `fpsEstimado` vêm da IA. `fonte`, `geradoEm` e `versaoContrato` a fonte preenche na hora.
 
-`Resultado` nasce completo: `configuracoes`, `fpsEstimado` vêm da IA; `fonte`, `geradoEm` e `versaoContrato` são preenchidos por `generator.ts` na resposta.
+## Cadeia
 
-## IA
+Ordem: cache local, cache compartilhado, Gemini, Groq.
 
-- Provedor: Gemini via REST direto (`generativelanguage.googleapis.com/v1beta`), com `fetch`. Não há SDK no caminho de execução.
-- Modelo em `MODEL` no topo de `service/ai/generator.ts`.
-- Chave: `EXPO_PUBLIC_GEMINI_API_KEY` em `.env.local` (não versionado).
-- `createOptmizedSetting()` **nunca lança**: retorna sempre `ConsultaResultado` (`{ ok: true, resultado }` ou `{ ok: false, erro }`), com `console.error` para diagnóstico. Mantenha esse contrato — a tela não tem tratamento de exceção.
-- 429 tem mensagem própria (limite de requisições).
-- `EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true` em `.env.local` faz `createOptmizedSetting()` devolver um `Resultado` fixo sem chamar a rede — útil para iterar layout sem gastar quota.
+- `createOptmizedSetting()` nunca lança. Devolve `ConsultaResultado`: `{ ok: true, resultado }` ou `{ ok: false, erro }`. A tela não tem try/catch.
+- 429 tem mensagem própria.
+- Fonte sem credencial fica de fora da cadeia. Não vira erro em runtime.
+- 401 e 400 param a cadeia. Não adianta tentar o próximo provedor.
+- `EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true` devolve um `Resultado` fixo, sem rede.
 
-Pontos conhecidos, a resolver quando o escopo permitir:
-- `EXPO_PUBLIC_*` é embutido no bundle, ou seja, **a chave do Gemini fica exposta no cliente**. Para produção, mover a chamada para um backend/proxy.
+Gemini é REST direto em `generativelanguage.googleapis.com/v1beta`. Modelo no topo de `fonte-gemini.ts`. Groq entra pelo AI SDK. Modelo no topo de `fonte-groq.ts`.
 
-## Convenções de código
+Chaves em `.env.local`, não versionado: `EXPO_PUBLIC_GEMINI_API_KEY`, `EXPO_PUBLIC_GROQ_API_KEY`. Groq é opcional.
 
-- TypeScript `strict`. Tipar entradas e saídas das funções de `service/`.
-- Português (pt-BR) em nomes de domínio, textos de UI e comentários — `jogo`, `placaVideo`, `resolucao`. Mantenha a consistência.
-- Estilos usam o sistema em camadas: tokens em `styles/tokens.ts`, StyleSheets reutilizáveis em `styles/primitives.ts`, importados via `@/styles`. Nunca estilo inline, nunca `StyleSheet.create` espalhado por componente.
-- Animações com `moti` (`MotiView`), já usadas na revelação do card e na entrada escalonada das linhas.
-- Componentes de tela são funções default export.
+`EXPO_PUBLIC_*` vai para o bundle. A chave fica no cliente. Para produção, a chamada tem que sair do app.
+
+## Convenções
+
+- TypeScript `strict`. Tipar entradas e saídas de `service/`.
+- Português (pt-BR) em nomes de domínio, UI e comentários: `jogo`, `placaVideo`, `resolucao`.
+- Estilo só pelo sistema em `@/styles`. Sem estilo inline, sem `StyleSheet.create` no componente.
+- Animação com `moti` (`MotiView`).
+- Tela é `export default`.
 
 ## Comandos
 
 ```bash
-npm start        # expo start
+npm start
 npm run android
 npm run ios
 npm run web
-npm run lint     # expo lint (eslint-config-expo)
+npm run lint
 ```
-
-
 
 ## Antes de entregar
 
 1. `npm run lint` e `npx tsc --noEmit` limpos.
-2. Se mexeu no schema Zod ou no prompt do Gemini: conferiu que os dois continuam casados.
-3. Sem chaves ou segredos em código versionado.
+2. Se mexeu no Zod ou no prompt, os dois lados ainda batem.
+3. Sem chave em código versionado.

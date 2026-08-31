@@ -12,7 +12,6 @@ import { criarFonteGroq } from './fonte-groq';
 import type { Consulta, Fonte } from './fonte';
 import { resolverConsulta, type ConsultaResultado } from './resolvedor';
 
-export type { Consulta as HardwareInfo } from './fonte';
 export type { ConsultaResultado } from './resolvedor';
 
 export interface OpcoesConsulta {
@@ -25,15 +24,10 @@ const usarResultadoExemplo = process.env.EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO === 
 const cacheApiUrl = resolverCacheApiUrl(process.env.EXPO_PUBLIC_CACHE_API_URL);
 const cacheApiToken = process.env.EXPO_PUBLIC_CACHE_API_TOKEN;
 
-/** Origens cujo resultado já veio de um cache, não de um provedor — nada a publicar de volta. */
 function veioDeCache(fonte: string): boolean {
   return fonte === 'salvo' || fonte === 'compartilhado';
 }
 
-/**
- * Borda de composição da aplicação. Fontes sem credencial são omitidas aqui,
- * antes da consulta, para que uma chave ausente nunca vire erro em runtime.
- */
 export function montarFontes(
   repositorioCache = criarRepositorioCacheLocal(),
   opcoes: OpcoesConsulta = {},
@@ -76,7 +70,6 @@ const repositorioCache = criarRepositorioCacheLocal();
 const fontesPadrao = montarFontes(repositorioCache);
 const fontesSemCache = montarFontes(repositorioCache, { ignorarCache: true });
 
-/** Mantém a API consumida pela tela enquanto delega a decisão ao resolvedor. */
 export async function createOptmizedSetting(
   consulta: Consulta,
   opcoes: OpcoesConsulta = {},

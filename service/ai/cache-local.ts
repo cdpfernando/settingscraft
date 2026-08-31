@@ -13,7 +13,6 @@ export interface ArmazenamentoChaveValor {
   multiGet(chaves: readonly string[]): Promise<readonly (readonly [string, string | null])[]>;
 }
 
-/** Cada registro guarda a consulta original junto do resultado, para o histórico não depender de nova busca. */
 const ConsultaSchema = z.object({
   jogo: z.string(),
   placaVideo: z.string(),
@@ -38,12 +37,11 @@ export interface RepositorioCacheLocal {
   listar(): Promise<ItemHistorico[]>;
 }
 
-/** Remove variações de caixa e espaçamento para uma mesma consulta reaproveitar o cache. */
 export function normalizarCampoCache(valor: string): string {
   return valor.trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
 }
 
-/** A versão do contrato integra a chave para invalidar registros antigos automaticamente. */
+// A versão na chave invalida cache antigo sem migração.
 export function criarChaveCache(consulta: Consulta, versaoContrato = CONTRATO_VERSAO): string {
   const campos = [
     consulta.jogo,
@@ -108,7 +106,6 @@ export function criarRepositorioCacheLocal(
   };
 }
 
-/** Adapta o repositório persistente à porta comum de fontes da cadeia. */
 export function criarFonteCacheLocal(repositorio: RepositorioCacheLocal): Fonte {
   return {
     nome: 'cache-local',

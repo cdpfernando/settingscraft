@@ -1,17 +1,7 @@
-/**
- * Primitivos de estilo do SettingsCraft
- *
- * StyleSheets reutilizáveis que consomem os tokens.
- * As telas não escrevem StyleSheet.create — importam daqui.
- */
 import { StyleSheet } from 'react-native';
 import { Cores, Espaco, Fonte, Raio } from './tokens';
 
-// ---------------------------------------------------------------------------
-// Layout
-// ---------------------------------------------------------------------------
 export const layoutStyles = StyleSheet.create({
-  /** Tela principal: scroll com padding e fundo escuro */
   telaScroll: {
     flexGrow: 1,
     backgroundColor: Cores.fundoBase,
@@ -31,9 +21,6 @@ export const layoutStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Tipografia
-// ---------------------------------------------------------------------------
 export const textoStyles = StyleSheet.create({
   display: {
     fontSize: Fonte.tamanhoDisplay,
@@ -80,11 +67,7 @@ export const textoStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Input
-// ---------------------------------------------------------------------------
 export const inputStyles = StyleSheet.create({
-  /** Envolve label + campo + mensagem de erro; substitui a margem que antes vivia no campo. */
   container: {
     width: '100%',
     marginBottom: Espaco.lg,
@@ -145,9 +128,6 @@ export const inputStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Alertas
-// ---------------------------------------------------------------------------
 export const alertaStyles = StyleSheet.create({
   erro: {
     backgroundColor: Cores.erroSombra,
@@ -165,9 +145,6 @@ export const alertaStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Botão principal
-// ---------------------------------------------------------------------------
 export const botaoStyles = StyleSheet.create({
   primario: {
     backgroundColor: Cores.acento,
@@ -212,9 +189,6 @@ export const botaoStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Card de resultado
-// ---------------------------------------------------------------------------
 export const cardStyles = StyleSheet.create({
   container: {
     backgroundColor: Cores.fundoCard,
@@ -299,9 +273,6 @@ export const cardStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Seletor de resolução
-// ---------------------------------------------------------------------------
 export const seletorStyles = StyleSheet.create({
   grupo: {
     width: '100%',
@@ -359,9 +330,6 @@ export const seletorStyles = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Histórico
-// ---------------------------------------------------------------------------
 export const historicoStyles = StyleSheet.create({
   tela: {
     flexGrow: 1,

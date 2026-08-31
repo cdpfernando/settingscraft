@@ -16,7 +16,7 @@ class Configuracao(BaseModel):
 
 
 class ResultadoOut(BaseModel):
-    """Espelha `Resultado` de service/ai/schema.ts."""
+    """Mesmo formato de Resultado em service/ai/schema.ts."""
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -28,7 +28,7 @@ class ResultadoOut(BaseModel):
 
 
 class RegistroEscrita(BaseModel):
-    """Corpo do POST: campos crus da Consulta + Resultado completo."""
+    """POST: consulta mais o resultado completo."""
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

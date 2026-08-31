@@ -21,8 +21,7 @@ from app.models import EscritaResposta, RegistroCache, RegistroEscrita, Resultad
 
 token_header = APIKeyHeader(name="X-Cache-Token", auto_error=False)
 
-# Limite por IP, configuravel por variavel de ambiente: primeira camada de protecao
-# antes da API ficar publicamente alcancavel (ver .scratch/deploy-cache-compartilhado).
+# Por IP. Sem isso a API pública vira brinquedo.
 RATE_LIMIT_LEITURA = os.environ.get("RATE_LIMIT_LEITURA", "60/minute")
 RATE_LIMIT_ESCRITA = os.environ.get("RATE_LIMIT_ESCRITA", "10/minute")
 
@@ -36,11 +35,10 @@ async def ciclo_de_vida(app: FastAPI):
 
 
 app = FastAPI(
-    title="SettingsCraft — Cache compartilhado",
+    title="SettingsCraft cache",
     description=(
-        "Cache compartilhado de recomendacoes graficas geradas por IA. "
-        "Papel e cache, nao proxy: quem chama a IA continua sendo o app, "
-        "que depois publica o resultado aqui."
+        "Guarda recomendacoes que o app ja gerou. "
+        "Nao chama IA. Se cair, o app segue sem o atalho."
     ),
     version="1.0.0",
     lifespan=ciclo_de_vida,
@@ -62,7 +60,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     "/recomendacoes",
     response_model=ResultadoOut,
     responses={404: {"description": "Nenhum resultado salvo para esses campos"}},
-    summary="Busca uma recomendacao salva a partir dos campos crus da consulta",
+    summary="Busca pelo hardware informado",
 )
 @limiter.limit(RATE_LIMIT_LEITURA)
 def buscar_recomendacao(
@@ -97,7 +95,7 @@ def buscar_recomendacao(
 @app.post(
     "/recomendacoes",
     response_model=EscritaResposta,
-    summary="Publica uma recomendacao gerada pela IA no cache compartilhado",
+    summary="Grava uma recomendacao gerada pelo app",
 )
 @limiter.limit(RATE_LIMIT_ESCRITA)
 def escrever_recomendacao(

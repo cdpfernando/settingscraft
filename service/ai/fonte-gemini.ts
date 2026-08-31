@@ -65,7 +65,6 @@ function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Cria o elo Gemini; o transporte é recebido por injeção para exercitar a fonte isoladamente. */
 export function criarFonteGemini({
   apiKey,
   transporte,

@@ -7,7 +7,6 @@ export type ConsultaResultado =
 
 const MENSAGEM_ERRO = 'Não foi possível gerar as configurações. Tente novamente.';
 
-/** Percorre a cadeia na ordem recebida e retorna o primeiro resultado válido. */
 export async function resolverConsulta(
   consulta: Consulta,
   fontes: readonly Fonte[],

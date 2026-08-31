@@ -1,177 +1,67 @@
 # SettingsCraft
 
-App mobile (Expo / React Native) que usa IA para recomendar as **melhores configurações gráficas** de um jogo a partir do hardware do usuário.
+Você diz o jogo, o PC e a resolução. O app devolve as configurações gráficas na ordem do menu, cada uma com um valor, uma justificativa curta e um chute de FPS.
 
-O jogador informa o jogo, placa de vídeo, processador, memória RAM e resolução alvo. O app consulta uma **cadeia de fontes** (cache local → Gemini → Groq) e devolve, na ordem do menu gráfico do jogo, cada configuração com o valor recomendado, uma justificativa curta e uma estimativa de FPS.
+Não gasta IA à toa. Primeiro olha o que já está no aparelho, depois o cache compartilhado, depois Gemini. Groq só entra se o Gemini falhar.
 
----
+## Rodando
 
-## Como rodar
-
-### 1. Pré-requisitos
-
-- Node.js ≥ 20
-- Expo CLI (`npm install -g expo-cli`) ou use `npx expo` diretamente
-- Conta no [Google AI Studio](https://aistudio.google.com/) para obter a chave do Gemini
-- Conta no [Groq Console](https://console.groq.com/) para obter a chave do Groq (opcional — fallback da cadeia)
-
-### 2. Instalar dependências
+Node 20 ou mais. Uma chave do [Google AI Studio](https://aistudio.google.com/) é o mínimo. Groq é opcional.
 
 ```bash
 npm install
 ```
 
-### 3. Configurar variável de ambiente
-
-Crie `.env.local` na raiz do projeto (não é versionado):
+Crie `.env.local` na raiz:
 
 ```
 EXPO_PUBLIC_GEMINI_API_KEY=sua_chave_aqui
 EXPO_PUBLIC_GROQ_API_KEY=sua_chave_aqui
 ```
 
-> **Nota:** `EXPO_PUBLIC_*` é embutido no bundle em build time. A chave fica exposta no cliente — limitação conhecida e aceita nesta fase. Uma rota de backend/proxy resolve isso depois.
+`EXPO_PUBLIC_*` entra no bundle em build time. A chave do Gemini fica no cliente. Para produção, a chamada tem que sair do app.
 
-`EXPO_PUBLIC_GROQ_API_KEY` é opcional: sem ela, o Groq simplesmente não entra na cadeia — nada falha em runtime.
-
-Por padrão o app já consulta o cache compartilhado ([`api/`](api/)) na instância pública hospedada no Railway — nenhuma variável precisa ser configurada. Opcional, só para apontar para uma instância própria (local ou auto-hospedada):
+O cache compartilhado já aponta para a instância no Railway. Só configure URL se for rodar a API você mesmo:
 
 ```
 EXPO_PUBLIC_CACHE_API_URL=http://192.168.0.10:8000
 EXPO_PUBLIC_CACHE_API_TOKEN=
 ```
 
-Use o IP da máquina que roda a API na rede local, não `localhost` (o dispositivo não o enxerga). `EXPO_PUBLIC_CACHE_API_TOKEN` só é necessário se `CACHE_WRITE_TOKEN` estiver configurada do lado do servidor (ver [`api/README.md`](api/README.md)) — a instância hospedada não exige token.
+Use o IP da máquina na LAN. `localhost` no celular não chega na sua API. Token só entra se o servidor tiver `CACHE_WRITE_TOKEN`. O resto está em [`api/README.md`](api/README.md).
 
-Opcional, para iterar layout sem gastar quota nem esperar a chamada de rede:
+Para mexer no layout sem gastar quota:
 
 ```
 EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true
 ```
 
-### 4. Iniciar
-
 ```bash
-npm start          # expo start (escolha Android / iOS / Web no menu)
-npm run android    # direto no emulador Android
-npm run ios        # direto no simulador iOS
+npm start          # menu do Expo: Android, iOS ou web
+npm run android
+npm run ios
 ```
 
----
+## O que está onde
 
-## Stack
-
-| Camada | Tecnologia |
-|---|---|
-| Framework | Expo SDK 54 |
-| Roteamento | expo-router v6 (file-based) |
-| Runtime | React Native 0.81, React 19, New Architecture |
-| IA | Gemini via REST direto (`fetch`) |
-| Animações | moti + react-native-reanimated |
-| Linguagem | TypeScript strict |
-
----
-
-## Estrutura
+Expo SDK 54, expo-router v6, React Native 0.81, React 19. Gemini via `fetch`. Groq via AI SDK. Animações com moti.
 
 ```
-app/
-  _layout.tsx              Stack raiz com cabeçalho do tema escuro
-  index.tsx                Tela de consulta
-  historico.tsx            Tela de histórico
-
-service/
-  ai/
-    fonte.ts               Porta Fonte, Consulta, TransporteHttp, erros da cadeia
-    resolvedor.ts           Percorre a cadeia, para na primeira fonte que responder
-    cache-local.ts          Repositório AsyncStorage + elo de cache local (1º da cadeia)
-    cache-compartilhado.ts  Elo HTTP do cache compartilhado (2º da cadeia) + publicação no miss
-    fonte-gemini.ts         Elo Gemini (fetch direto)
-    fonte-groq.ts           Elo Groq (AI SDK)
-    generator.ts            Borda de composição: monta a cadeia, expõe createOptmizedSetting()
-    schema.ts               Contrato Zod (fonte única de verdade)
-
-api/
-  app/                 FastAPI: cache compartilhado (GET/POST /recomendacoes)
-                       Ver api/README.md — roda separado, com uv
-
-styles/
-  tokens.ts            Cores, espaçamentos, tipografia, raios
-  primitives.ts        StyleSheets reutilizáveis que consomem os tokens
-  index.ts             Re-exporta tokens + primitivos como @/styles
-
-assets/
-  data/                (Bloco 3) Datasets locais de GPUs e CPUs para autocomplete
+app/           telas
+service/ai/    cadeia de fontes e o schema Zod
+api/           FastAPI do cache compartilhado
+styles/        tokens e StyleSheets. Sem estilo inline.
+assets/data/   GPUs e CPUs do autocomplete
 ```
 
----
+A cadeia é montada em `service/ai/generator.ts`: cache local, cache compartilhado, Gemini, Groq. Quem responder primeiro ganha. O cache compartilhado desiste em 1,5s e a cadeia segue. Se a API cair, o jogador não vê erro, só espera a IA.
 
-## Arquitetura
+O schema Zod em `service/ai/schema.ts` é o contrato. O JSON Schema que o Gemini recebe sai dele em runtime. Um segundo schema escrito à mão diverge, e você só percebe quando o parse quebra.
 
-### Cadeia de fontes
+Incrementar `CONTRATO_VERSAO` invalida o cache antigo. Sem TTL. Hardware e jogo não mudam sozinhos.
 
-Toda origem de recomendação implementa a mesma interface `Fonte`:
+## O que ainda está torto
 
-```ts
-interface Fonte {
-  nome: string;
-  buscar(consulta: Consulta): Promise<Resultado | null>;
-}
-```
+A chave da IA no bundle. Sem testes automatizados de propósito; o resolvedor aceita fontes injetadas para quando isso entrar. O backend é cache, não proxy. O app continua falando com a IA direto.
 
-Um resolvedor percorre a cadeia parando na primeira fonte que responder. A composição da cadeia acontece na borda da aplicação (não dentro do resolvedor), o que permite testá-la com fontes falsas.
-
-**Cadeia:** cache local → cache compartilhado (API) → Gemini → Groq
-
-O elo do cache compartilhado tem timeout curto (~1,5s): se a API não responder rápido, a cadeia segue em silêncio para o próximo elo — erro ou indisponibilidade do backend nunca chegam ao jogador. Ele sempre entra na cadeia, apontando para a instância pública hospedada por padrão; `EXPO_PUBLIC_CACHE_API_URL` sobrescreve para uma instância própria. No miss de todos os caches, o resultado obtido dos provedores é publicado de volta na API; "gerar novamente" pula os dois elos de cache e publica com sobrescrita explícita.
-
-O elo do Groq entra pelo [AI SDK](https://ai-sdk.dev/), que exige polyfills do Expo (`structuredClone`, `TextEncoderStream`, `TextDecoderStream`) — importados uma única vez em [`polyfills.ts`](polyfills.ts), na raiz.
-
-### Resultado tipado
-
-A resposta da IA é validada contra um schema Zod antes de chegar à tela:
-
-```ts
-interface Resultado {
-  configuracoes: { nome: string; valor: string; justificativa: string }[];
-  fpsEstimado: string;
-  fonte: string;      // nome da fonte que respondeu
-  geradoEm: string;   // ISO 8601
-  versaoContrato: number;
-}
-```
-
-### Cache
-
-Chave = campos da consulta normalizados + número de versão do contrato. Incrementar a versão invalida todo o cache antigo sem migração. Sem TTL — hardware e jogo não mudam sozinhos.
-
----
-
-## Sequência de desenvolvimento
-
-| Bloco | Escopo |
-|---|---|
-| 1 — Fundação ✅ | Limpeza do template, design system em camadas, tema escuro, documentação |
-| 2 — Contrato tipado ✅ | Zod, schema derivado, Gemini em JSON, resultado de exemplo |
-| 3 — Interface | Autocomplete de GPU/CPU, validação, estados de loading, selo de origem |
-| 4 — Cadeia e persistência | Porta Fonte, resolvedor, cache local, histórico, navegação |
-| 5 — Fase distribuída | Groq (AI SDK), API FastAPI, elo HTTP |
-
----
-
-## Decisões e limitações conhecidas
-
-- **Chave exposta no bundle:** `EXPO_PUBLIC_GEMINI_API_KEY` é inlined pelo Expo em build time. Aceitável em fase de desenvolvimento; a solução é mover as chamadas para um backend/proxy.
-- **Sem testes automatizados nesta fase:** adiados deliberadamente. O código nasce com o *seam* correto (resolvedor da cadeia aceita injeção de fontes) para facilitar a adição posterior.
-- **Backend como cache, não proxy:** o app continua chamando a IA diretamente. O backend compartilha resultados entre dispositivos e reduz consumo de quota, mas não esconde a chave.
-
----
-
-## Lint e tipos
-
-```bash
-npm run lint       # eslint via expo lint
-npx tsc --noEmit   # verificação de tipos
-```
-
-Ambos devem passar limpos antes de qualquer PR.
+`npm run lint` e `npx tsc --noEmit` precisam passar.

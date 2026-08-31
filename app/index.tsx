@@ -34,9 +34,6 @@ const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as 
 type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
 type Erros = Partial<Record<CampoObrigatorio, string>>;
 
-// ---------------------------------------------------------------------------
-// Tela principal
-// ---------------------------------------------------------------------------
 export default function Index() {
   const router = useRouter();
   const [jogo, setJogo] = useState('');
@@ -154,7 +151,7 @@ export default function Index() {
       />
       <Text style={textoStyles.display}>SettingsCraft</Text>
       <Text style={textoStyles.subtitulo}>
-        Configurações gráficas otimizadas para o seu hardware
+        O menu gráfico no tamanho do seu PC
       </Text>
 
       <Text style={textoStyles.label}>Jogo</Text>

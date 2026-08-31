@@ -18,7 +18,6 @@ interface FonteGroqOpcoes {
   transporte: TransporteHttp;
 }
 
-/** Último elo da cadeia: mesmo contrato Zod do Gemini, via AI SDK. */
 export function criarFonteGroq({ apiKey, transporte }: FonteGroqOpcoes): Fonte {
   const groq = createGroq({ apiKey, fetch: transporte });
 

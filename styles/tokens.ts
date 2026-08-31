@@ -1,41 +1,23 @@
-/**
- * Design tokens do SettingsCraft
- *
- * Fonte única de verdade para cores, espaçamentos, tipografia e raios.
- * Todos os outros arquivos de estilo importam daqui — nunca usam valores literais.
- */
-
-// ---------------------------------------------------------------------------
-// Paleta
-// ---------------------------------------------------------------------------
 export const Cores = {
-  // Fundos (do mais escuro ao mais claro)
   fundoBase: '#0f0f1a',
   fundoCard: '#1a1a2e',
   fundoLinha: '#16213e',
   fundoBorda: '#2a2a4a',
 
-  // Acento único — cyan/teal
   acento: '#00d4aa',
   acentoSombra: 'rgba(0, 212, 170, 0.15)',
 
-  // Texto
   textoPrimario: '#f0f0f5',
   textoSecundario: '#a0a0b8',
   textoTerciario: '#606080',
   textoInverso: '#0f0f1a',
 
-  // Estado
   erro: '#ff5c72',
   erroSombra: 'rgba(255, 92, 114, 0.15)',
 
-  // Utilitários
   transparente: 'transparent',
 } as const;
 
-// ---------------------------------------------------------------------------
-// Espaçamentos
-// ---------------------------------------------------------------------------
 export const Espaco = {
   xs: 4,
   sm: 8,
@@ -46,9 +28,6 @@ export const Espaco = {
   xxxl: 40,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Raios de borda
-// ---------------------------------------------------------------------------
 export const Raio = {
   sm: 6,
   md: 10,
@@ -56,9 +35,6 @@ export const Raio = {
   pill: 999,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Tipografia
-// ---------------------------------------------------------------------------
 export const Fonte = {
   tamanhoXs: 11,
   tamanhoSm: 13,

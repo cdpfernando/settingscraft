@@ -40,7 +40,7 @@ export function ResultadoCard({
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', stiffness: 100 }}
     >
-      <Text style={textoStyles.tituloCard}>⚙️ Configurações — {jogo}</Text>
+      <Text style={textoStyles.tituloCard}>Configurações de {jogo}</Text>
 
       {resultado.configuracoes.map((item, index) => (
         <MotiView

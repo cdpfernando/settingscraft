@@ -1,7 +1,7 @@
 import type { Consulta, Fonte, TransporteHttp } from './fonte';
 import { CONTRATO_VERSAO, ResultadoSchema, type Resultado } from './schema';
 
-/** Miss não vale a espera — a IA levará mais que isso de qualquer forma. */
+// Se o cache não respondeu em 1,5s, a IA vai demorar mais que isso mesmo.
 const TEMPO_LIMITE_LEITURA_MS = 1_500;
 const TEMPO_LIMITE_ESCRITA_MS = 5_000;
 
@@ -22,11 +22,6 @@ function paraQueryString(consulta: Consulta): string {
   }).toString();
 }
 
-/**
- * Cria o elo de leitura do cache compartilhado. Erro de rede, timeout ou
- * resposta malformada nunca chegam ao usuário: a fonte devolve `null` e a
- * cadeia segue em silêncio para o próximo elo.
- */
 export function criarFonteCacheCompartilhado({ baseUrl, transporte }: CacheCompartilhadoOpcoes): Fonte {
   return {
     nome: 'cache-compartilhado',
@@ -63,11 +58,6 @@ export function criarFonteCacheCompartilhado({ baseUrl, transporte }: CacheCompa
   };
 }
 
-/**
- * Publica de volta na API o resultado obtido dos provedores após um miss.
- * Nunca lança: falha de publicação é um detalhe de infraestrutura, não algo
- * que o jogador precise ver.
- */
 export async function publicarNoCacheCompartilhado(
   { baseUrl, transporte, token }: CacheCompartilhadoOpcoes,
   consulta: Consulta,
