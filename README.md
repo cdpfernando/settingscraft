@@ -34,14 +34,14 @@ EXPO_PUBLIC_GROQ_API_KEY=sua_chave_aqui
 
 `EXPO_PUBLIC_GROQ_API_KEY` é opcional: sem ela, o Groq simplesmente não entra na cadeia — nada falha em runtime.
 
-Opcional, para usar o cache compartilhado ([`api/`](api/)) — sem ela, o elo não entra na cadeia:
+Por padrão o app já consulta o cache compartilhado ([`api/`](api/)) na instância pública hospedada no Railway — nenhuma variável precisa ser configurada. Opcional, só para apontar para uma instância própria (local ou auto-hospedada):
 
 ```
 EXPO_PUBLIC_CACHE_API_URL=http://192.168.0.10:8000
 EXPO_PUBLIC_CACHE_API_TOKEN=
 ```
 
-Use o IP da máquina que roda a API na rede local, não `localhost` (o dispositivo não o enxerga). `EXPO_PUBLIC_CACHE_API_TOKEN` só é necessário se `CACHE_WRITE_TOKEN` estiver configurada do lado do servidor (ver [`api/README.md`](api/README.md)).
+Use o IP da máquina que roda a API na rede local, não `localhost` (o dispositivo não o enxerga). `EXPO_PUBLIC_CACHE_API_TOKEN` só é necessário se `CACHE_WRITE_TOKEN` estiver configurada do lado do servidor (ver [`api/README.md`](api/README.md)) — a instância hospedada não exige token.
 
 Opcional, para iterar layout sem gastar quota nem esperar a chamada de rede:
 
@@ -123,7 +123,7 @@ Um resolvedor percorre a cadeia parando na primeira fonte que responder. A compo
 
 **Cadeia:** cache local → cache compartilhado (API) → Gemini → Groq
 
-O elo do cache compartilhado tem timeout curto (~1,5s): se a API não responder rápido, a cadeia segue em silêncio para o próximo elo — erro ou indisponibilidade do backend nunca chegam ao jogador. Sem `EXPO_PUBLIC_CACHE_API_URL` configurada, o elo é omitido na montagem. No miss de todos os caches, o resultado obtido dos provedores é publicado de volta na API; "gerar novamente" pula os dois elos de cache e publica com sobrescrita explícita.
+O elo do cache compartilhado tem timeout curto (~1,5s): se a API não responder rápido, a cadeia segue em silêncio para o próximo elo — erro ou indisponibilidade do backend nunca chegam ao jogador. Ele sempre entra na cadeia, apontando para a instância pública hospedada por padrão; `EXPO_PUBLIC_CACHE_API_URL` sobrescreve para uma instância própria. No miss de todos os caches, o resultado obtido dos provedores é publicado de volta na API; "gerar novamente" pula os dois elos de cache e publica com sobrescrita explícita.
 
 O elo do Groq entra pelo [AI SDK](https://ai-sdk.dev/), que exige polyfills do Expo (`structuredClone`, `TextEncoderStream`, `TextDecoderStream`) — importados uma única vez em [`polyfills.ts`](polyfills.ts), na raiz.
 
