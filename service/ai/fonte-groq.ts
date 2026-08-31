@@ -10,7 +10,7 @@ import {
 import { criarPrompt, INSTRUCAO_SISTEMA } from './prompt';
 import { CONTRATO_VERSAO, RespostaIaSchema } from './schema';
 
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = 'openai/gpt-oss-120b';
 const TEMPO_LIMITE_MS = 45_000;
 
 interface FonteGroqOpcoes {
