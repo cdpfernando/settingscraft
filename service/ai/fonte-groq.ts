@@ -1,5 +1,5 @@
 import { createGroq } from '@ai-sdk/groq';
-import { APICallError, generateObject } from 'ai';
+import { APICallError, generateText, Output } from 'ai';
 
 import {
   ErroFonteConfiguracao,
@@ -28,23 +28,25 @@ export function criarFonteGroq({ apiKey, transporte }: FonteGroqOpcoes): Fonte {
       const temporizador = setTimeout(() => controlador.abort(), TEMPO_LIMITE_MS);
 
       try {
-        const { object } = await generateObject({
+        const { output } = await generateText({
           model: groq(MODEL),
-          schema: RespostaIaSchema,
-          system: INSTRUCAO_SISTEMA,
+          output: Output.object({ schema: RespostaIaSchema }),
+          instructions: INSTRUCAO_SISTEMA,
           prompt: criarPrompt(consulta),
           abortSignal: controlador.signal,
         });
 
         return {
-          ...object,
+          ...output,
           fonte: 'groq',
           geradoEm: new Date().toISOString(),
           versaoContrato: CONTRATO_VERSAO,
         };
       } catch (erro) {
         if (APICallError.isInstance(erro)) {
-          console.error('[fonteGroq] Erro na API:', erro.statusCode, erro.message);
+          const corpo =
+            typeof erro.responseBody === 'string' ? erro.responseBody.slice(0, 500) : erro.responseBody;
+          console.error('[fonteGroq] Erro na API:', erro.statusCode, erro.message, erro.cause, corpo);
           if (erro.statusCode === 400 || erro.statusCode === 401) {
             throw new ErroFonteConfiguracao('groq', erro.statusCode);
           }

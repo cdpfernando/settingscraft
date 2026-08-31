@@ -1,3 +1,5 @@
+import { fetch as expoFetch } from 'expo/fetch';
+
 import { resolverCacheApiUrl } from './cache-api-url';
 import {
   criarFonteCacheCompartilhado,
@@ -50,7 +52,12 @@ export function montarFontes(
     console.warn('[montarFontes] EXPO_PUBLIC_GROQ_API_KEY não está definida; Groq omitido da cadeia.');
   } else {
     fontesProvedores.push(
-      criarFonteGroq({ apiKey: groqApiKey, transporte: fetch }),
+      criarFonteGroq({
+        apiKey: groqApiKey,
+        // O AI SDK lê o corpo via response.body.getReader(). O fetch nativo do
+        // RN deixa body nulo e vira "200 Invalid JSON response".
+        transporte: expoFetch as typeof fetch,
+      }),
     );
   }
 
