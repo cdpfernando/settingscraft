@@ -77,6 +77,10 @@ service/
   chain/               (Bloco 4) Porta Fonte, resolvedor, fontes concretas
   cache/               (Bloco 4) Repositório AsyncStorage
 
+api/
+  app/                 FastAPI: cache compartilhado (GET/POST /recomendacoes)
+                       Ver api/README.md — roda separado, com uv
+
 styles/
   tokens.ts            Cores, espaçamentos, tipografia, raios
   primitives.ts        StyleSheets reutilizáveis que consomem os tokens

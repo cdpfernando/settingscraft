@@ -8,14 +8,25 @@ Leitura envia os campos crus e o servidor calcula a chave — assim a normaliza�
 
 **Blocked by:** 04 — Contrato tipado.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Serviço FastAPI em pasta própria, com SQLite e SQLModel, e instruções de execução
-- [ ] Leitura recebe os campos crus da consulta; a chave é calculada no servidor
-- [ ] Miss responde 404 com corpo vazio
-- [ ] Hit responde o resultado completo e incrementa a contagem de reaproveitamentos
-- [ ] Escrita exige token em cabeçalho quando a variável de ambiente está definida
-- [ ] Variável ausente no servidor deixa a escrita aberta para desenvolvimento local
-- [ ] Payload revalidado no servidor contra o contrato antes de gravar
-- [ ] Conflito de chave existente ignorado por padrão; sobrescrita apenas com parâmetro explícito
-- [ ] Documentação interativa acessível e suficiente para exercitar os dois endpoints
+- [x] Serviço FastAPI em pasta própria, com SQLite e SQLModel, e instruções de execução
+- [x] Leitura recebe os campos crus da consulta; a chave é calculada no servidor
+- [x] Miss responde 404 com corpo vazio
+- [x] Hit responde o resultado completo e incrementa a contagem de reaproveitamentos
+- [x] Escrita exige token em cabeçalho quando a variável de ambiente está definida
+- [x] Variável ausente no servidor deixa a escrita aberta para desenvolvimento local
+- [x] Payload revalidado no servidor contra o contrato antes de gravar
+- [x] Conflito de chave existente ignorado por padrão; sobrescrita apenas com parâmetro explícito
+- [x] Documentação interativa acessível e suficiente para exercitar os dois endpoints
+
+## Comments
+
+Implementado em `api/` (FastAPI + SQLModel + SQLite, gerenciado com `uv`, independente do projeto npm na raiz):
+
+- `app/main.py`: `GET /recomendacoes` (campos crus como query params, chave calculada no servidor, 404 de corpo vazio no miss, incrementa `reaproveitamentos` no hit) e `POST /recomendacoes` (token opcional via header `X-Cache-Token` contra `CACHE_WRITE_TOKEN`, 401 se configurado e ausente/errado, aberto se a variável não existir no servidor; `sobrescrever=false` por padrão ignora conflito de chave, `sobrescrever=true` sobrescreve preservando o contador de reaproveitamentos).
+- `app/models.py`: schemas Pydantic espelhando `Resultado`/`Consulta` de `service/ai/schema.ts` e `service/ai/fonte.ts` (aliases camelCase no wire, snake_case internamente) — revalidação automática do payload (422 em malformado) satisfaz "servidor revalida antes de gravar".
+- `app/cache.py`: normalização (trim/lower/collapse-whitespace) + chave própria do servidor — independente da chave do AsyncStorage local, não precisa bater bit a bit.
+- Documentação interativa em `/docs` (Swagger UI, com botão Authorize para o token) — testado manualmente: miss 404 vazio, hit 200 com incremento, chaves normalizadas diferentes colidem na mesma linha, no-op em conflito sem `sobrescrever`, sobrescrita explícita, 401 sem/errado token, 201 com token correto, 422 em payload incompleto.
+- `api/README.md` documenta pré-requisitos, `uv sync`, variáveis de ambiente e exemplos de `curl` para os dois endpoints. Root `README.md` atualizado com a pasta `api/` na árvore de estrutura.
+- Fora de escopo (fica para a 14): o elo HTTP do lado do app (`service/ai/`) que chama esta API.
