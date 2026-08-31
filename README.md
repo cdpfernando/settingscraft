@@ -34,6 +34,15 @@ EXPO_PUBLIC_GROQ_API_KEY=sua_chave_aqui
 
 `EXPO_PUBLIC_GROQ_API_KEY` é opcional: sem ela, o Groq simplesmente não entra na cadeia — nada falha em runtime.
 
+Opcional, para usar o cache compartilhado ([`api/`](api/)) — sem ela, o elo não entra na cadeia:
+
+```
+EXPO_PUBLIC_CACHE_API_URL=http://192.168.0.10:8000
+EXPO_PUBLIC_CACHE_API_TOKEN=
+```
+
+Use o IP da máquina que roda a API na rede local, não `localhost` (o dispositivo não o enxerga). `EXPO_PUBLIC_CACHE_API_TOKEN` só é necessário se `CACHE_WRITE_TOKEN` estiver configurada do lado do servidor (ver [`api/README.md`](api/README.md)).
+
 Opcional, para iterar layout sem gastar quota nem esperar a chamada de rede:
 
 ```
@@ -67,15 +76,20 @@ npm run ios        # direto no simulador iOS
 
 ```
 app/
-  _layout.tsx          Stack raiz com cabeçalho do tema escuro
-  index.tsx            Tela de consulta
-  historico.tsx        (Bloco 4) Tela de histórico
+  _layout.tsx              Stack raiz com cabeçalho do tema escuro
+  index.tsx                Tela de consulta
+  historico.tsx            Tela de histórico
 
 service/
   ai/
-    generator.ts       Chamada ao Gemini (fetch direto)
-  chain/               (Bloco 4) Porta Fonte, resolvedor, fontes concretas
-  cache/               (Bloco 4) Repositório AsyncStorage
+    fonte.ts               Porta Fonte, Consulta, TransporteHttp, erros da cadeia
+    resolvedor.ts           Percorre a cadeia, para na primeira fonte que responder
+    cache-local.ts          Repositório AsyncStorage + elo de cache local (1º da cadeia)
+    cache-compartilhado.ts  Elo HTTP do cache compartilhado (2º da cadeia) + publicação no miss
+    fonte-gemini.ts         Elo Gemini (fetch direto)
+    fonte-groq.ts           Elo Groq (AI SDK)
+    generator.ts            Borda de composição: monta a cadeia, expõe createOptmizedSetting()
+    schema.ts               Contrato Zod (fonte única de verdade)
 
 api/
   app/                 FastAPI: cache compartilhado (GET/POST /recomendacoes)
@@ -107,8 +121,9 @@ interface Fonte {
 
 Um resolvedor percorre a cadeia parando na primeira fonte que responder. A composição da cadeia acontece na borda da aplicação (não dentro do resolvedor), o que permite testá-la com fontes falsas.
 
-**Cadeia atual:** cache local → Gemini → Groq  
-**Cadeia planejada:** cache local → cache compartilhado (API) → Gemini → Groq
+**Cadeia:** cache local → cache compartilhado (API) → Gemini → Groq
+
+O elo do cache compartilhado tem timeout curto (~1,5s): se a API não responder rápido, a cadeia segue em silêncio para o próximo elo — erro ou indisponibilidade do backend nunca chegam ao jogador. Sem `EXPO_PUBLIC_CACHE_API_URL` configurada, o elo é omitido na montagem. No miss de todos os caches, o resultado obtido dos provedores é publicado de volta na API; "gerar novamente" pula os dois elos de cache e publica com sobrescrita explícita.
 
 O elo do Groq entra pelo [AI SDK](https://ai-sdk.dev/), que exige polyfills do Expo (`structuredClone`, `TextEncoderStream`, `TextDecoderStream`) — importados uma única vez em [`polyfills.ts`](polyfills.ts), na raiz.
 

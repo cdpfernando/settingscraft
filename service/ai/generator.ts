@@ -1,4 +1,8 @@
 import {
+  criarFonteCacheCompartilhado,
+  publicarNoCacheCompartilhado,
+} from './cache-compartilhado';
+import {
   criarFonteCacheLocal,
   criarRepositorioCacheLocal,
 } from './cache-local';
@@ -17,6 +21,13 @@ export interface OpcoesConsulta {
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 const usarResultadoExemplo = process.env.EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO === 'true';
+const cacheApiUrl = process.env.EXPO_PUBLIC_CACHE_API_URL;
+const cacheApiToken = process.env.EXPO_PUBLIC_CACHE_API_TOKEN;
+
+/** Origens cujo resultado já veio de um cache, não de um provedor — nada a publicar de volta. */
+function veioDeCache(fonte: string): boolean {
+  return fonte === 'salvo' || fonte === 'compartilhado';
+}
 
 /**
  * Borda de composição da aplicação. Fontes sem credencial são omitidas aqui,
@@ -52,8 +63,15 @@ export function montarFontes(
     return fontesProvedores;
   }
 
-  const fonteCache = criarFonteCacheLocal(repositorioCache);
-  return [fonteCache, ...fontesProvedores];
+  const fontesCache: Fonte[] = [criarFonteCacheLocal(repositorioCache)];
+
+  if (cacheApiUrl) {
+    fontesCache.push(criarFonteCacheCompartilhado({ baseUrl: cacheApiUrl, transporte: fetch }));
+  } else {
+    console.warn('[montarFontes] EXPO_PUBLIC_CACHE_API_URL não está definida; cache compartilhado omitido da cadeia.');
+  }
+
+  return [...fontesCache, ...fontesProvedores];
 }
 
 const repositorioCache = criarRepositorioCacheLocal();
@@ -68,11 +86,20 @@ export async function createOptmizedSetting(
   const fontes = opcoes.ignorarCache ? fontesSemCache : fontesPadrao;
   const resposta = await resolverConsulta(consulta, fontes);
 
-  if (resposta.ok && resposta.resultado.fonte !== 'salvo') {
+  if (resposta.ok && !veioDeCache(resposta.resultado.fonte)) {
     try {
       await repositorioCache.salvar(consulta, resposta.resultado);
     } catch (erro) {
       console.error('[cacheLocal] Não foi possível salvar o resultado:', erro);
+    }
+
+    if (cacheApiUrl) {
+      void publicarNoCacheCompartilhado(
+        { baseUrl: cacheApiUrl, transporte: fetch, token: cacheApiToken },
+        consulta,
+        resposta.resultado,
+        opcoes.ignorarCache === true,
+      );
     }
   }
 
