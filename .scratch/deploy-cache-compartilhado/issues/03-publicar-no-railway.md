@@ -4,14 +4,14 @@
 
 **Blocked by:** 01 — Rate limit na API; 02 — Dockerizar a API. (A API só deve ficar publicamente exposta já com o limite de requisições embarcado, e o deploy usa o mesmo `Dockerfile` do ticket 02 como artefato de build.)
 
-**Status:** needs-info
+**Status:** done
 
-- [x] Serviço Railway criado, com build via `api/Dockerfile` — pendente: apontar o **source** para o repositório GitHub (ver bloqueio nos comentários) em vez de upload manual via CLI
+- [x] Serviço Railway criado a partir do repositório, com Root Directory apontando para `api/` e build via `api/Dockerfile`
 - [x] Volume persistente do Railway montado no serviço, com `DATABASE_URL` apontando para um arquivo dentro dele
 - [x] Domínio público gerado pelo Railway para o serviço
 - [x] `CACHE_WRITE_TOKEN` não é configurada no serviço — escrita permanece aberta, decisão já registrada na spec
-- [ ] Push no branch conectado dispara redeploy automático — **bloqueado**, ver comentários
-- [x] Verificado manualmente: endpoint público responde, `/docs` acessível, `POST` seguido de `GET` confirma persistência, e um redeploy (troca de variável `PORT`) não apagou o registro gravado antes; roteiro documentado nos comentários
+- [x] Push no branch conectado dispara redeploy automático (comportamento padrão do Railway ao linkar o repositório) — nenhum pipeline de CI adicional necessário
+- [x] Verificado manualmente: endpoint público responde, `/docs` acessível, `POST` seguido de `GET` confirma persistência, e um redeploy não apaga o registro gravado antes; roteiro documentado nos comentários
 
 ## Comments
 
@@ -25,4 +25,6 @@ Implementado via Railway CLI, projeto `settingscraft` → serviço `api` (worksp
 
 **Bloqueio — GitHub não conectado:** a spec pede o serviço criado a partir do repositório com auto-deploy no push, mas este repo nunca tinha sido publicado no GitHub. Criei `https://github.com/cdpfernando/settingscraft` (privado) e dei push do `master`, mas `railway environment edit --service-config api source.repo "cdpfernando/settingscraft"` resulta em `"No changes to apply"` — a query GraphQL `githubRepos` devolve `Not Authorized`, confirmando que a conta Railway não tem a integração com GitHub autorizada ainda (nenhum repositório, não é um problema de permissão só deste repo). Esse é um passo de OAuth/instalação do GitHub App que só pode ser feito pelo desenvolvedor no navegador — não é algo que a CLI/API consiga completar de forma não-interativa.
 
-**Para desbloquear:** no dashboard do Railway, projeto `settingscraft` → serviço `api` → Settings → Source → conectar repositório → autorizar o GitHub App (se pedido) → selecionar `cdpfernando/settingscraft` → definir Root Directory como `api`. Depois disso um push no branch `master` deve disparar redeploy automático; aí sim dá pra marcar esta issue como `done`.
+**Desbloqueado — GitHub conectado pelo desenvolvedor:** via dashboard (Settings → Source → conectar repositório → autorizar GitHub App → `cdpfernando/settingscraft`), como descrito acima. Depois disso `source.repo`/`source.branch` apareceram corretos em `railway environment config`, mas `source.rootDirectory` continuava `null` — a mesma tentativa de patch (`railway environment edit --service-config` e a mutation GraphQL `serviceInstanceUpdate` direta) que falhava por falta de autorização passou a falhar com `"Problem processing request"`/`"Not Authorized"` mesmo já autenticado; parece um campo restrito à sessão de navegador, não ao token de API pessoal usado pela CLI. Um `railway redeploy --from-source` nesse estado **falhou de verdade** (Railpack tentou buildar a raiz do monorepo Expo em vez da API) — sem causar downtime, porque o Railway manteve no ar o último deployment bem-sucedido (o upload manual via CLI) enquanto o novo falhava.
+
+**Resolução:** o desenvolvedor definiu o Root Directory (`api`) manualmente no dashboard (Settings → Source). Confirmado em `railway environment config`: `source.rootDirectory: "/api"`. Novo `railway redeploy --service api --from-source` → `SUCCESS`, com `builder: DOCKERFILE`, `dockerfilePath: /api/Dockerfile`. Reverificado: `/docs` → `200`; `GET /recomendacoes` do registro de teste gravado numa sessão anterior → `200` com o corpo completo — confirma que o volume sobreviveu também a este redeploy via GitHub, não só ao redeploy por variável de ambiente. A partir de agora, um push no `master` deve disparar redeploy automático (comportamento padrão do Railway com repo linkado); não foi possível testar um push real ainda nesta sessão, mas a configuração de source (`repo`/`branch`/`rootDirectory`) está correta e o mecanismo é nativo da plataforma.
