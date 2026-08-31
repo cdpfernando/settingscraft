@@ -8,19 +8,64 @@ Serviço FastAPI que guarda recomendações já geradas pelo Gemini/Groq para qu
 
 ## Como rodar
 
-### 1. Pré-requisitos
+Duas formas equivalentes: via Docker (sem instalar Python/`uv` na máquina) ou via `uv` local. Escolha uma.
+
+### Opção A — Docker (recomendado para rodar rápido / sem instalar Python)
+
+#### 1. Pré-requisitos
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/) (`docker compose`, plugin já incluso no Docker Desktop, ou o binário standalone `docker-compose`)
+
+#### 2. Configurar variável de ambiente
+
+Copie `.env.example` para `.env`:
+
+```bash
+cd api
+cp .env.example .env
+```
+
+Edite `.env` e defina `DATABASE_URL` com o caminho dentro do volume montado (obrigatório para o SQLite persistir corretamente — ver comentário em `.env.example`):
+
+```
+DATABASE_URL=sqlite:////data/cache.db
+```
+
+`CACHE_WRITE_TOKEN` é opcional, igual ao fluxo local (ver Opção B).
+
+#### 3. Subir o serviço
+
+```bash
+docker compose up --build
+# ou, com o binário standalone: docker-compose up --build
+```
+
+A API sobe em `http://127.0.0.1:8000` (e `http://<ip-da-máquina>:8000` na rede local, para o app mobile alcançar). `/docs` tem o Swagger UI de sempre.
+
+O SQLite fica no volume nomeado `cache-db`, montado em `/data` dentro do container — sobrevive a `docker compose down` seguido de `docker compose up` (o container é recriado, o volume não). Para apagar os dados de verdade: `docker compose down -v`.
+
+#### 4. Encerrar
+
+```bash
+docker compose down
+```
+
+### Opção B — `uv` local (sem Docker)
+
+#### 1. Pré-requisitos
 
 - Python ≥ 3.12
 - [`uv`](https://docs.astral.sh/uv/)
 
-### 2. Instalar dependências
+#### 2. Instalar dependências
 
 ```bash
 cd api
 uv sync
 ```
 
-### 3. Configurar variável de ambiente (opcional)
+#### 3. Configurar variável de ambiente (opcional)
 
 Copie `.env.example` para `.env`:
 
@@ -29,9 +74,13 @@ cp .env.example .env
 ```
 
 - `CACHE_WRITE_TOKEN`: se definida, toda escrita exige o cabeçalho `X-Cache-Token` com o mesmo valor. Se ausente, a escrita fica aberta — modo de desenvolvimento local.
-- `DATABASE_URL`: opcional, padrão `sqlite:///./cache.db`.
+- `DATABASE_URL`: opcional, padrão `sqlite:///./cache.db`. Não defina o valor sugerido para Docker (`sqlite:////data/cache.db`) aqui — fora do container não existe `/data`.
+- `RATE_LIMIT_LEITURA`: limite de requisições por IP para `GET /recomendacoes`. Opcional, padrão `60/minute`.
+- `RATE_LIMIT_ESCRITA`: limite de requisições por IP para `POST /recomendacoes`. Opcional, padrão `10/minute`.
 
-### 4. Iniciar
+As duas variáveis de rate limit valem também na Opção A (Docker) — são lidas do mesmo `.env`.
+
+#### 4. Iniciar
 
 ```bash
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -60,6 +109,7 @@ Recebe os campos crus da consulta; o servidor normaliza e calcula a chave.
 
 - **Hit** (`200`): corpo no formato `Resultado` (`configuracoes`, `fpsEstimado`, `fonte`, `geradoEm`, `versaoContrato`), e a contagem de reaproveitamentos é incrementada.
 - **Miss** (`404`): corpo vazio, sem interpretação especulativa.
+- **Limite excedido** (`429`): mais de `RATE_LIMIT_LEITURA` requisições por minuto do mesmo IP (padrão `60/minute`).
 
 ```bash
 curl "http://127.0.0.1:8000/recomendacoes?jogo=Elden%20Ring&placaVideo=RTX%203060&processador=Ryzen%205%205600&memoria=16GB&resolucao=1080p&versaoContrato=1"
@@ -71,7 +121,7 @@ Publica um resultado gerado pela IA. Corpo = campos crus da consulta + `Resultad
 
 Query param `sobrescrever` (padrão `false`): se a chave já existir, o registro é ignorado por padrão; passe `sobrescrever=true` para forçar a sobrescrita (é o que o botão "gerar novamente" do app envia).
 
-Se `CACHE_WRITE_TOKEN` estiver definida no servidor, o cabeçalho `X-Cache-Token` é obrigatório e precisa bater com o valor configurado — caso contrário, `401`. O payload é revalidado contra o contrato antes de gravar; payload malformado responde `422`.
+Se `CACHE_WRITE_TOKEN` estiver definida no servidor, o cabeçalho `X-Cache-Token` é obrigatório e precisa bater com o valor configurado — caso contrário, `401`. O payload é revalidado contra o contrato antes de gravar; payload malformado responde `422`. Mais de `RATE_LIMIT_ESCRITA` requisições por minuto do mesmo IP (padrão `10/minute`) responde `429`.
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/recomendacoes" \
@@ -106,6 +156,7 @@ Resposta: `{"gravado": true, "chave": "..."}` (`201` para registro novo, `200` p
 | Banco | SQLite |
 | Servidor ASGI | uvicorn |
 | Gerenciador de pacotes | uv |
+| Rate limit | slowapi (por IP) |
 
 ## Estrutura
 
@@ -116,6 +167,8 @@ api/
     models.py     Tabela SQLModel + schemas Pydantic (espelham service/ai/schema.ts)
     cache.py       Normalização de campos e cálculo da chave
     db.py           Engine e sessão do SQLite
+  Dockerfile        Imagem python:3.12-slim + uv sync; mesmo artefato usado no build do Railway
+  docker-compose.yml Serviço único, porta 8000, volume nomeado para o SQLite
   .env.example
 ```
 
@@ -123,4 +176,4 @@ api/
 
 - A chave de cache é calculada a partir dos mesmos campos e regra de normalização (minúsculas, espaços colapsados) usados no cache local do app, mas os dois armazenamentos são independentes — não precisam produzir a mesma string de chave.
 - Sem TTL: hardware e jogo não mudam sozinhos.
-- Roda local, sem hospedagem nesta fase — publicar é mudança de variável de ambiente no app, não de código aqui.
+- `Dockerfile`/`docker-compose.yml` cobrem o ambiente local containerizado; hospedagem pública (Railway) é tratada em outro escopo, a partir do mesmo `Dockerfile`.

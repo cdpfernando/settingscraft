@@ -6,9 +6,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response, Security, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, Security, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIASGIMiddleware
+from slowapi.util import get_remote_address
 from sqlmodel import Session, select
 
 from app.cache import criar_chave
@@ -16,6 +20,13 @@ from app.db import criar_tabelas, obter_sessao
 from app.models import EscritaResposta, RegistroCache, RegistroEscrita, ResultadoOut
 
 token_header = APIKeyHeader(name="X-Cache-Token", auto_error=False)
+
+# Limite por IP, configuravel por variavel de ambiente: primeira camada de protecao
+# antes da API ficar publicamente alcancavel (ver .scratch/deploy-cache-compartilhado).
+RATE_LIMIT_LEITURA = os.environ.get("RATE_LIMIT_LEITURA", "60/minute")
+RATE_LIMIT_ESCRITA = os.environ.get("RATE_LIMIT_ESCRITA", "10/minute")
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -42,6 +53,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_middleware(SlowAPIASGIMiddleware)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.get(
     "/recomendacoes",
@@ -49,7 +64,9 @@ app.add_middleware(
     responses={404: {"description": "Nenhum resultado salvo para esses campos"}},
     summary="Busca uma recomendacao salva a partir dos campos crus da consulta",
 )
+@limiter.limit(RATE_LIMIT_LEITURA)
 def buscar_recomendacao(
+    request: Request,
     jogo: str,
     resolucao: str,
     placa_video: str = Query(alias="placaVideo"),
@@ -82,7 +99,9 @@ def buscar_recomendacao(
     response_model=EscritaResposta,
     summary="Publica uma recomendacao gerada pela IA no cache compartilhado",
 )
+@limiter.limit(RATE_LIMIT_ESCRITA)
 def escrever_recomendacao(
+    request: Request,
     registro: RegistroEscrita,
     response: Response,
     sobrescrever: bool = Query(False),
