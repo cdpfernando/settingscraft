@@ -1,7 +1,8 @@
+import { Botao } from '@/components/botao';
 import { formatarDataGeracao, ResultadoCard } from '@/components/resultado-card';
 import { criarRepositorioCacheLocal, type ItemHistorico } from '@/service/ai/cache-local';
-import { historicoStyles } from '@/styles';
-import { Stack } from 'expo-router';
+import { Cores, historicoStyles } from '@/styles';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -13,6 +14,7 @@ function resumoHardware(item: ItemHistorico): string {
 }
 
 export default function Historico() {
+  const router = useRouter();
   const [itens, setItens] = useState<ItemHistorico[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [itemSelecionado, setItemSelecionado] = useState<ItemHistorico | null>(null);
@@ -43,32 +45,44 @@ export default function Historico() {
         <Stack.Screen options={{ title: itemSelecionado.consulta.jogo }} />
         <Pressable
           onPress={() => setItemSelecionado(null)}
-          style={historicoStyles.botaoVoltar}
+          style={({ pressed }) => [
+            historicoStyles.botaoVoltar,
+            pressed && historicoStyles.itemPressionado,
+          ]}
           accessibilityRole="button"
           accessibilityLabel="Voltar para a lista de histórico"
         >
-          <Text style={historicoStyles.textoBotaoVoltar}>← Voltar</Text>
+          <Text style={historicoStyles.textoBotaoVoltar}>Voltar</Text>
         </Pressable>
         <ResultadoCard
           jogo={itemSelecionado.consulta.jogo}
           resolucaoConsultada={itemSelecionado.consulta.resolucao}
           resultado={itemSelecionado.resultado}
+          embutido
         />
       </ScrollView>
     );
   }
 
-  if (carregando || itens.length === 0) {
+  if (carregando) {
     return (
       <View style={historicoStyles.vazioContainer}>
         <Stack.Screen options={{ title: 'Histórico' }} />
-        {carregando ? (
-          <ActivityIndicator />
-        ) : (
-          <Text style={historicoStyles.vazioTexto}>
-            Nenhuma consulta salva ainda. As configurações que você gerar aparecem aqui.
-          </Text>
-        )}
+        <ActivityIndicator color={Cores.acento} />
+      </View>
+    );
+  }
+
+  if (itens.length === 0) {
+    return (
+      <View style={historicoStyles.vazioContainer}>
+        <Stack.Screen options={{ title: 'Histórico' }} />
+        <Text style={historicoStyles.vazioTexto}>
+          Nenhuma consulta ainda. As configurações que você gerar aparecem aqui.
+        </Text>
+        <View style={historicoStyles.vazioAcao}>
+          <Botao titulo="Gerar configurações" onPress={() => router.replace('/')} />
+        </View>
       </View>
     );
   }
@@ -93,7 +107,7 @@ export default function Historico() {
             <Text style={historicoStyles.itemJogo}>{item.consulta.jogo}</Text>
             <Text style={historicoStyles.itemHardware}>{resumoHardware(item)}</Text>
             <Text style={historicoStyles.itemRodape}>
-              Origem: {item.resultado.fonte} · {formatarDataGeracao(item.resultado.geradoEm)}
+              {item.resultado.fonte} · {formatarDataGeracao(item.resultado.geradoEm)}
             </Text>
           </Pressable>
         )}

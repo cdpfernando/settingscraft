@@ -1,17 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
 
+import type { ArmazenamentoChaveValor } from '../armazenamento';
 import type { Consulta, Fonte } from './fonte';
 import { CONTRATO_VERSAO, ResultadoSchema, type Resultado } from './schema';
 
-const PREFIXO_CHAVE = '@settingscraft/resultados';
+export type { ArmazenamentoChaveValor } from '../armazenamento';
 
-export interface ArmazenamentoChaveValor {
-  getItem(chave: string): Promise<string | null>;
-  setItem(chave: string, valor: string): Promise<void>;
-  getAllKeys(): Promise<readonly string[]>;
-  multiGet(chaves: readonly string[]): Promise<readonly (readonly [string, string | null])[]>;
-}
+const PREFIXO_CHAVE = '@settingscraft/resultados';
 
 const ConsultaSchema = z.object({
   jogo: z.string(),

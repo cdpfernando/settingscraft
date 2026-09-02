@@ -77,7 +77,11 @@ export function AutocompleteHardware({
         onBlur={() => setEstaFocado(false)}
         autoCapitalize="words"
         autoCorrect={false}
-        style={[inputStyles.campo, erro && inputStyles.campoErro]}
+        style={[
+          inputStyles.campo,
+          mostrarSugestoes && inputStyles.campoAberto,
+          erro && inputStyles.campoErro,
+        ]}
         accessibilityLabel={label}
       />
 

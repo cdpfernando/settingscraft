@@ -1,11 +1,16 @@
 import { StyleSheet } from 'react-native';
-import { Cores, Espaco, Fonte, Raio } from './tokens';
+import { Controle, Cores, Espaco, Fonte, Raio } from './tokens';
 
 export const layoutStyles = StyleSheet.create({
   telaScroll: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: Cores.fundoBase,
-    padding: Espaco.xl,
+    paddingHorizontal: Espaco.xl,
+    paddingTop: Espaco.lg,
+    paddingBottom: Espaco.xxl,
   },
 
   row: {
@@ -18,52 +23,52 @@ export const layoutStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Espaco.md,
   },
 });
 
 export const textoStyles = StyleSheet.create({
-  display: {
-    fontSize: Fonte.tamanhoDisplay,
-    fontWeight: Fonte.pesoBold,
-    color: Cores.textoPrimario,
-    marginBottom: Espaco.sm,
-  },
-
-  subtitulo: {
+  intro: {
     fontSize: Fonte.tamanhoMd,
     fontWeight: Fonte.pesoNormal,
     color: Cores.textoSecundario,
+    lineHeight: Fonte.alturaLinhaLarga,
     marginBottom: Espaco.xl,
   },
 
   label: {
-    fontSize: Fonte.tamanhoMd,
-    fontWeight: Fonte.pesoSemibold,
+    fontSize: Fonte.tamanhoSm,
+    fontWeight: Fonte.pesoMedio,
     color: Cores.textoSecundario,
     alignSelf: 'flex-start',
     marginBottom: Espaco.sm,
   },
 
-  corpoCard: {
-    fontSize: Fonte.tamanhoMd,
-    color: Cores.textoSecundario,
-    lineHeight: Fonte.alturaLinhaLarga,
-  },
-
   tituloCard: {
     fontSize: Fonte.tamanhoLg,
-    fontWeight: Fonte.pesoBold,
+    fontWeight: Fonte.pesoSemibold,
     color: Cores.textoPrimario,
+  },
+
+  metaCard: {
+    fontSize: Fonte.tamanhoSm,
+    color: Cores.textoSecundario,
+    marginTop: Espaco.xs,
     marginBottom: Espaco.lg,
-    paddingBottom: Espaco.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Cores.fundoBorda,
   },
 
   linkHeader: {
     fontSize: Fonte.tamanhoMd,
     fontWeight: Fonte.pesoSemibold,
     color: Cores.acento,
+  },
+});
+
+export const headerStyles = StyleSheet.create({
+  acao: {
+    minHeight: Controle.toqueMinimo,
+    justifyContent: 'center',
+    paddingHorizontal: Espaco.sm,
   },
 });
 
@@ -75,14 +80,19 @@ export const inputStyles = StyleSheet.create({
 
   campo: {
     width: '100%',
-    height: 50,
+    height: Controle.altura,
     backgroundColor: Cores.fundoCard,
-    borderRadius: Raio.md,
-    paddingHorizontal: Espaco.md,
+    borderRadius: Raio.sm,
+    paddingHorizontal: Espaco.lg,
     borderWidth: 1,
     borderColor: Cores.fundoBorda,
     color: Cores.textoPrimario,
     fontSize: Fonte.tamanhoMd,
+  },
+
+  campoAberto: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
 
   campoErro: {
@@ -101,15 +111,15 @@ export const inputStyles = StyleSheet.create({
     borderWidth: 1,
     borderTopWidth: 0,
     borderColor: Cores.fundoBorda,
-    borderBottomLeftRadius: Raio.md,
-    borderBottomRightRadius: Raio.md,
+    borderBottomLeftRadius: Raio.sm,
+    borderBottomRightRadius: Raio.sm,
     overflow: 'hidden',
   },
 
   sugestao: {
-    minHeight: 44,
+    minHeight: Controle.toqueMinimo,
     justifyContent: 'center',
-    paddingHorizontal: Espaco.md,
+    paddingHorizontal: Espaco.lg,
     paddingVertical: Espaco.sm,
   },
 
@@ -119,7 +129,7 @@ export const inputStyles = StyleSheet.create({
   },
 
   sugestaoPressionada: {
-    backgroundColor: Cores.acentoSombra,
+    backgroundColor: Cores.fundoLinha,
   },
 
   textoSugestao: {
@@ -130,8 +140,8 @@ export const inputStyles = StyleSheet.create({
 
 export const alertaStyles = StyleSheet.create({
   erro: {
-    backgroundColor: Cores.erroSombra,
-    borderRadius: Raio.md,
+    backgroundColor: Cores.erroFundo,
+    borderRadius: Raio.sm,
     borderWidth: 1,
     borderColor: Cores.erro,
     padding: Espaco.md,
@@ -142,50 +152,52 @@ export const alertaStyles = StyleSheet.create({
     color: Cores.erro,
     fontSize: Fonte.tamanhoSm,
     fontWeight: Fonte.pesoMedio,
+    lineHeight: Fonte.alturaLinhaNormal,
   },
 });
 
 export const botaoStyles = StyleSheet.create({
   primario: {
     backgroundColor: Cores.acento,
-    height: 50,
+    minHeight: Controle.altura,
     alignItems: 'center',
-    borderRadius: Raio.md,
+    borderRadius: Raio.sm,
     justifyContent: 'center',
     width: '100%',
-    marginBottom: Espaco.sm,
-  },
-
-  primarioDesabilitado: {
-    opacity: 0.5,
-  },
-
-  textoPrimario: {
-    fontWeight: Fonte.pesoBold,
-    fontSize: Fonte.tamanhoMd,
-    color: Cores.textoInverso,
+    paddingHorizontal: Espaco.lg,
   },
 
   secundario: {
-    backgroundColor: Cores.acentoSombra,
-    height: 46,
+    backgroundColor: Cores.transparente,
+    minHeight: Controle.altura,
     alignItems: 'center',
-    borderRadius: Raio.md,
+    borderRadius: Raio.sm,
     justifyContent: 'center',
     width: '100%',
     borderWidth: 1,
-    borderColor: Cores.acento,
+    borderColor: Cores.fundoBorda,
     marginTop: Espaco.md,
+    paddingHorizontal: Espaco.lg,
   },
 
-  secundarioDesabilitado: {
+  desabilitado: {
     opacity: 0.5,
+  },
+
+  pressionado: {
+    transform: [{ scale: 0.96 }],
+  },
+
+  textoPrimario: {
+    fontWeight: Fonte.pesoSemibold,
+    fontSize: Fonte.tamanhoMd,
+    color: Cores.textoInverso,
   },
 
   textoSecundario: {
     fontWeight: Fonte.pesoSemibold,
     fontSize: Fonte.tamanhoMd,
-    color: Cores.acento,
+    color: Cores.textoPrimario,
   },
 });
 
@@ -195,88 +207,72 @@ export const cardStyles = StyleSheet.create({
     marginTop: Espaco.xxl,
     width: '100%',
     borderRadius: Raio.lg,
-    padding: Espaco.xl,
+    padding: Espaco.lg,
     borderWidth: 1,
     borderColor: Cores.fundoBorda,
   },
 
+  containerEmbutido: {
+    marginTop: 0,
+  },
+
   linhaConfig: {
     backgroundColor: Cores.fundoLinha,
-    borderRadius: Raio.md,
-    padding: Espaco.md,
+    borderRadius: Raio.sm,
+    paddingHorizontal: Espaco.md,
+    paddingVertical: Espaco.md,
     marginBottom: Espaco.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: Cores.acento,
   },
 
   nomeConfig: {
     fontSize: Fonte.tamanhoSm,
-    fontWeight: Fonte.pesoSemibold,
+    fontWeight: Fonte.pesoMedio,
     color: Cores.textoSecundario,
     flex: 1,
   },
 
-  badgeValor: {
-    backgroundColor: Cores.acentoSombra,
-    borderRadius: Raio.sm,
-    paddingHorizontal: Espaco.md,
-    paddingVertical: Espaco.xs,
-    borderWidth: 1,
-    borderColor: Cores.acento,
-  },
-
   textoValor: {
     fontSize: Fonte.tamanhoSm,
-    fontWeight: Fonte.pesoBold,
-    color: Cores.acento,
+    fontWeight: Fonte.pesoSemibold,
+    fontFamily: Fonte.mono,
+    fontVariant: ['tabular-nums'],
+    color: Cores.textoPrimario,
+    textAlign: 'right',
+    maxWidth: '48%',
   },
 
   justificativa: {
     fontSize: Fonte.tamanhoXs,
     color: Cores.textoTerciario,
     marginTop: Espaco.sm,
-    fontStyle: 'italic',
-  },
-
-  badgeFps: {
-    backgroundColor: Cores.fundoLinha,
-    borderRadius: Raio.md,
-    padding: Espaco.md,
-    marginTop: Espaco.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Cores.acento,
-  },
-
-  rotuloFps: {
-    color: Cores.textoSecundario,
-    fontSize: Fonte.tamanhoXs,
-    fontWeight: Fonte.pesoMedio,
-    marginBottom: Espaco.xs,
+    lineHeight: Fonte.alturaLinhaNormal,
   },
 
   textoFps: {
-    fontSize: Fonte.tamanhoLg,
-    fontWeight: Fonte.pesoBold,
+    fontSize: Fonte.tamanhoSm,
+    fontWeight: Fonte.pesoSemibold,
+    fontFamily: Fonte.mono,
+    fontVariant: ['tabular-nums'],
     color: Cores.acento,
+    textAlign: 'right',
+    maxWidth: '48%',
   },
 
   seloOrigem: {
-    alignItems: 'center',
     marginTop: Espaco.md,
   },
 
   textoOrigem: {
     color: Cores.textoTerciario,
     fontSize: Fonte.tamanhoXs,
-    textAlign: 'center',
+    lineHeight: Fonte.alturaLinhaNormal,
   },
 });
 
 export const seletorStyles = StyleSheet.create({
   grupo: {
     width: '100%',
-    marginBottom: Espaco.xl,
+    marginBottom: Espaco.lg,
   },
 
   container: {
@@ -284,18 +280,11 @@ export const seletorStyles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Espaco.sm,
     width: '100%',
-    borderRadius: Raio.md,
-  },
-
-  containerErro: {
-    borderWidth: 1,
-    borderColor: Cores.erro,
-    padding: Espaco.xs,
   },
 
   opcao: {
     minWidth: 88,
-    minHeight: 42,
+    minHeight: Controle.toqueMinimo,
     flexGrow: 1,
     flexBasis: '40%',
     alignItems: 'center',
@@ -310,11 +299,11 @@ export const seletorStyles = StyleSheet.create({
 
   opcaoAtiva: {
     borderColor: Cores.acento,
-    backgroundColor: Cores.acentoSombra,
+    backgroundColor: Cores.acentoSuave,
   },
 
   opcaoPressionada: {
-    opacity: 0.75,
+    transform: [{ scale: 0.96 }],
   },
 
   textoOpcao: {
@@ -333,8 +322,13 @@ export const seletorStyles = StyleSheet.create({
 export const historicoStyles = StyleSheet.create({
   tela: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: Cores.fundoBase,
-    padding: Espaco.xl,
+    paddingHorizontal: Espaco.xl,
+    paddingTop: Espaco.lg,
+    paddingBottom: Espaco.xxl,
   },
 
   item: {
@@ -347,12 +341,12 @@ export const historicoStyles = StyleSheet.create({
   },
 
   itemPressionado: {
-    opacity: 0.75,
+    transform: [{ scale: 0.96 }],
   },
 
   itemJogo: {
     fontSize: Fonte.tamanhoLg,
-    fontWeight: Fonte.pesoBold,
+    fontWeight: Fonte.pesoSemibold,
     color: Cores.textoPrimario,
     marginBottom: Espaco.xs,
   },
@@ -361,29 +355,42 @@ export const historicoStyles = StyleSheet.create({
     fontSize: Fonte.tamanhoSm,
     color: Cores.textoSecundario,
     marginBottom: Espaco.sm,
+    lineHeight: Fonte.alturaLinhaNormal,
   },
 
   itemRodape: {
     fontSize: Fonte.tamanhoXs,
     color: Cores.textoTerciario,
+    fontVariant: ['tabular-nums'],
   },
 
   vazioContainer: {
-    flexGrow: 1,
+    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: Cores.fundoBase,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Espaco.xxl,
+    paddingHorizontal: Espaco.xl,
+    gap: Espaco.lg,
+  },
+
+  vazioAcao: {
+    alignSelf: 'stretch',
   },
 
   vazioTexto: {
     fontSize: Fonte.tamanhoMd,
     color: Cores.textoSecundario,
     textAlign: 'center',
+    lineHeight: Fonte.alturaLinhaLarga,
   },
 
   botaoVoltar: {
-    marginBottom: Espaco.xl,
+    minHeight: Controle.toqueMinimo,
+    justifyContent: 'center',
+    marginBottom: Espaco.lg,
     alignSelf: 'flex-start',
   },
 
@@ -391,5 +398,35 @@ export const historicoStyles = StyleSheet.create({
     color: Cores.acento,
     fontSize: Fonte.tamanhoMd,
     fontWeight: Fonte.pesoSemibold,
+  },
+});
+
+export const lembrarStyles = StyleSheet.create({
+  linha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Espaco.md,
+    minHeight: Controle.toqueMinimo,
+    width: '100%',
+    marginTop: Espaco.sm,
+    marginBottom: Espaco.xl,
+    paddingVertical: Espaco.sm,
+  },
+
+  linhaPressionada: {
+    opacity: 0.7,
+  },
+
+  rotulo: {
+    flex: 1,
+    fontSize: Fonte.tamanhoSm,
+    fontWeight: Fonte.pesoMedio,
+    color: Cores.textoSecundario,
+    lineHeight: Fonte.alturaLinhaNormal,
+  },
+
+  interruptor: {
+    pointerEvents: 'none',
   },
 });

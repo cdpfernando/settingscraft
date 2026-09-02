@@ -19,10 +19,7 @@ export function SeletorOpcoes({
   return (
     <View style={seletorStyles.grupo}>
       <Text style={textoStyles.label}>{label}</Text>
-      <View
-        style={[seletorStyles.container, erro && seletorStyles.containerErro]}
-        accessibilityRole="radiogroup"
-      >
+      <View style={seletorStyles.container} accessibilityRole="radiogroup">
         {opcoes.map((opcao) => {
           const selecionada = valor === opcao;
           return (

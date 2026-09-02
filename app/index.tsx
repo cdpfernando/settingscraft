@@ -5,34 +5,40 @@ import {
   RESOLUCOES,
 } from '@/assets/data/hardware';
 import { AutocompleteHardware } from '@/components/autocomplete-hardware';
+import { Botao } from '@/components/botao';
+import { LembrarHardware } from '@/components/lembrar-hardware';
 import { ResultadoCard } from '@/components/resultado-card';
 import { SeletorOpcoes } from '@/components/seletor-opcoes';
 import { createOptmizedSetting } from '@/service/ai/generator';
 import type { Resultado } from '@/service/ai/schema';
 import {
+  criarRepositorioHardwareLembrado,
+  type HardwareLembrado,
+} from '@/service/hardware-lembrado';
+import {
   alertaStyles,
-  botaoStyles,
   Cores,
+  headerStyles,
   inputStyles,
   layoutStyles,
   textoStyles,
 } from '@/styles';
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Keyboard,
   Pressable,
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
 const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as const;
 type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
 type Erros = Partial<Record<CampoObrigatorio, string>>;
+
+const repositorioHardware = criarRepositorioHardwareLembrado();
 
 export default function Index() {
   const router = useRouter();
@@ -41,16 +47,70 @@ export default function Index() {
   const [processador, setProcessador] = useState('');
   const [memoria, setMemoria] = useState('');
   const [resolucao, setResolucao] = useState<string>(RESOLUCOES[1]);
+  const [lembrarHardware, setLembrarHardware] = useState(false);
   const [erros, setErros] = useState<Erros>({});
   const [erroApi, setErroApi] = useState('');
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [resolucaoConsultada, setResolucaoConsultada] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGerandoNovamente, setIsGerandoNovamente] = useState(false);
+  const lembrarHardwareRef = useRef(false);
 
   const desabilitado = isLoading || isGerandoNovamente;
 
   const valores: Record<CampoObrigatorio, string> = { jogo, placaVideo, processador, memoria };
+
+  const definirLembrarHardware = (ligado: boolean) => {
+    lembrarHardwareRef.current = ligado;
+    setLembrarHardware(ligado);
+  };
+
+  const aplicarHardware = (perfil: HardwareLembrado) => {
+    setPlacaVideo(perfil.placaVideo);
+    setProcessador(perfil.processador);
+    setMemoria(perfil.memoria);
+    setResolucao(perfil.resolucao);
+    setErros((atual) => ({
+      ...atual,
+      placaVideo: undefined,
+      processador: undefined,
+      memoria: undefined,
+    }));
+  };
+
+  useEffect(() => {
+    let ativo = true;
+
+    repositorioHardware
+      .ler()
+      .then((perfil) => {
+        if (!ativo || !perfil) return;
+        aplicarHardware(perfil);
+        definirLembrarHardware(true);
+      })
+      .catch((erro) => {
+        console.error('[consulta] Não foi possível ler o hardware lembrado:', erro);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const aoAlternarLembrar = (ligado: boolean) => {
+    definirLembrarHardware(ligado);
+
+    if (ligado) {
+      void repositorioHardware.ler().then((perfil) => {
+        if (perfil && lembrarHardwareRef.current) aplicarHardware(perfil);
+      });
+      return;
+    }
+
+    void repositorioHardware.apagar().catch((erro) => {
+      console.error('[consulta] Não foi possível esquecer o hardware:', erro);
+    });
+  };
 
   const editarCampo = (campo: CampoObrigatorio, valor: string) => {
     if (campo === 'jogo') setJogo(valor);
@@ -94,6 +154,13 @@ export default function Index() {
     if (resposta.ok) {
       setResultado(resposta.resultado);
       setResolucaoConsultada(resolucao);
+      if (lembrarHardwareRef.current) {
+        void repositorioHardware
+          .salvar({ placaVideo, processador, memoria, resolucao })
+          .catch((erro) => {
+            console.error('[consulta] Não foi possível lembrar o hardware:', erro);
+          });
+      }
     } else {
       setErroApi(resposta.erro);
     }
@@ -143,15 +210,15 @@ export default function Index() {
               accessibilityRole="button"
               accessibilityLabel="Ver histórico de consultas"
               hitSlop={8}
+              style={headerStyles.acao}
             >
               <Text style={textoStyles.linkHeader}>Histórico</Text>
             </Pressable>
           ),
         }}
       />
-      <Text style={textoStyles.display}>SettingsCraft</Text>
-      <Text style={textoStyles.subtitulo}>
-        O menu gráfico no tamanho do seu PC
+      <Text style={textoStyles.intro}>
+        Diga o jogo e o PC. Devolvemos o menu gráfico preenchido.
       </Text>
 
       <Text style={textoStyles.label}>Jogo</Text>
@@ -162,6 +229,7 @@ export default function Index() {
           placeholderTextColor={Cores.textoTerciario}
           onChangeText={(v) => editarCampo('jogo', v)}
           style={[inputStyles.campo, erros.jogo && inputStyles.campoErro]}
+          accessibilityLabel="Jogo"
         />
         {!!erros.jogo && <Text style={inputStyles.mensagemErro}>{erros.jogo}</Text>}
       </View>
@@ -199,23 +267,15 @@ export default function Index() {
         onChange={setResolucao}
       />
 
-      <TouchableOpacity
-        style={[
-          botaoStyles.primario,
-          desabilitado && botaoStyles.primarioDesabilitado,
-        ]}
+      <LembrarHardware ligado={lembrarHardware} onChange={aoAlternarLembrar} />
+
+      <Botao
+        titulo="Gerar configurações"
+        tituloCarregando="Gerando"
+        carregando={isLoading}
+        desabilitado={desabilitado}
         onPress={gerarConfiguracoes}
-        disabled={desabilitado}
-      >
-        {isLoading ? (
-          <View style={layoutStyles.row}>
-            <ActivityIndicator color={Cores.textoInverso} />
-            <Text style={botaoStyles.textoPrimario}>Gerando...</Text>
-          </View>
-        ) : (
-          <Text style={botaoStyles.textoPrimario}>Gerar Configurações</Text>
-        )}
-      </TouchableOpacity>
+      />
 
       {!!erroApi && (
         <View style={alertaStyles.erro}>
