@@ -37,6 +37,10 @@ export function normalizarCampoCache(valor: string): string {
   return valor.trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
 }
 
+function prefixoChave(versaoContrato = CONTRATO_VERSAO): string {
+  return `${PREFIXO_CHAVE}:v${versaoContrato}:`;
+}
+
 // A versão na chave invalida cache antigo sem migração.
 export function criarChaveCache(consulta: Consulta, versaoContrato = CONTRATO_VERSAO): string {
   const campos = [
@@ -47,7 +51,23 @@ export function criarChaveCache(consulta: Consulta, versaoContrato = CONTRATO_VE
     consulta.resolucao,
   ].map(normalizarCampoCache);
 
-  return `${PREFIXO_CHAVE}:v${versaoContrato}:${JSON.stringify(campos)}`;
+  return `${prefixoChave(versaoContrato)}${JSON.stringify(campos)}`;
+}
+
+async function lerRegistro(
+  armazenamento: ArmazenamentoChaveValor,
+  chave: string,
+  valor: string,
+): Promise<ItemHistorico | null> {
+  try {
+    const registro = RegistroCacheSchema.safeParse(JSON.parse(valor));
+    if (registro.success) return registro.data;
+  } catch {
+    
+  }
+
+  await armazenamento.removeItem(chave);
+  return null;
 }
 
 export function criarRepositorioCacheLocal(
@@ -55,20 +75,12 @@ export function criarRepositorioCacheLocal(
 ): RepositorioCacheLocal {
   return {
     async buscar(consulta) {
-      const armazenado = await armazenamento.getItem(criarChaveCache(consulta));
+      const chave = criarChaveCache(consulta);
+      const armazenado = await armazenamento.getItem(chave);
       if (!armazenado) return null;
 
-      try {
-        const registro = RegistroCacheSchema.safeParse(JSON.parse(armazenado));
-        if (!registro.success) {
-          console.error('[cacheLocal] Registro armazenado não corresponde ao contrato:', registro.error.issues);
-          return null;
-        }
-        return registro.data.resultado;
-      } catch (erro) {
-        console.error('[cacheLocal] Não foi possível ler o registro armazenado:', erro);
-        return null;
-      }
+      const registro = await lerRegistro(armazenamento, chave, armazenado);
+      return registro?.resultado ?? null;
     },
     salvar(consulta, resultado) {
       const registro: ItemHistorico = { consulta, resultado };
@@ -76,25 +88,16 @@ export function criarRepositorioCacheLocal(
     },
     async listar() {
       const todasChaves = await armazenamento.getAllKeys();
-      const chavesCache = todasChaves.filter((chave) => chave.startsWith(PREFIXO_CHAVE));
+      const chavesCache = todasChaves.filter((chave) => chave.startsWith(prefixoChave()));
       if (chavesCache.length === 0) return [];
 
       const pares = await armazenamento.multiGet(chavesCache);
       const itens: ItemHistorico[] = [];
 
-      for (const [, valor] of pares) {
+      for (const [chave, valor] of pares) {
         if (!valor) continue;
-
-        try {
-          const registro = RegistroCacheSchema.safeParse(JSON.parse(valor));
-          if (registro.success) {
-            itens.push(registro.data);
-          } else {
-            console.error('[cacheLocal] Registro de histórico não corresponde ao contrato:', registro.error.issues);
-          }
-        } catch (erro) {
-          console.error('[cacheLocal] Não foi possível ler um registro do histórico:', erro);
-        }
+        const registro = await lerRegistro(armazenamento, chave, valor);
+        if (registro) itens.push(registro);
       }
 
       return itens.sort((a, b) => b.resultado.geradoEm.localeCompare(a.resultado.geradoEm));
