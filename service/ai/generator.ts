@@ -11,8 +11,14 @@ import {
 } from './cache-local';
 import { criarFonteGemini } from './fonte-gemini';
 import { criarFonteGroq } from './fonte-groq';
-import type { Consulta, Fonte } from './fonte';
-import { resolverConsulta, type ConsultaResultado } from './resolvedor';
+import type { Consulta, Fonte, Gerador, ProvedorEvidencia } from './fonte';
+import { criarProvedorEvidenciaFpsHq } from './provedor-fpshq';
+import {
+  resolverConsulta,
+  type ConsultaResultado,
+  type EtapasConsulta,
+} from './resolvedor';
+import type { EvidenciaDesempenho } from './schema';
 
 export type { ConsultaResultado } from './resolvedor';
 
@@ -30,28 +36,29 @@ function veioDeCache(fonte: string): boolean {
   return fonte === 'salvo' || fonte === 'compartilhado';
 }
 
-export function montarFontes(
+export function montarEtapas(
   repositorioCache = criarRepositorioCacheLocal(),
   opcoes: OpcoesConsulta = {},
-): Fonte[] {
-  const fontesProvedores: Fonte[] = [];
+  provedorCompartilhado?: ProvedorEvidencia<EvidenciaDesempenho>,
+): EtapasConsulta<EvidenciaDesempenho> {
+  const geradores: Gerador<EvidenciaDesempenho>[] = [];
 
   if (usarResultadoExemplo) {
-    fontesProvedores.push(
+    geradores.push(
       criarFonteGemini({ apiKey: '', transporte: fetch, usarResultadoExemplo: true }),
     );
   } else if (!apiKey) {
-    console.warn('[montarFontes] EXPO_PUBLIC_GEMINI_API_KEY não está definida; Gemini omitido da cadeia.');
+    console.warn('[montarEtapas] EXPO_PUBLIC_GEMINI_API_KEY não está definida; Gemini omitido da cadeia.');
   } else {
-    fontesProvedores.push(
+    geradores.push(
       criarFonteGemini({ apiKey, transporte: fetch }),
     );
   }
 
   if (!groqApiKey) {
-    console.warn('[montarFontes] EXPO_PUBLIC_GROQ_API_KEY não está definida; Groq omitido da cadeia.');
+    console.warn('[montarEtapas] EXPO_PUBLIC_GROQ_API_KEY não está definida; Groq omitido da cadeia.');
   } else {
-    fontesProvedores.push(
+    geradores.push(
       criarFonteGroq({
         apiKey: groqApiKey,
         // O AI SDK lê o corpo via response.body.getReader(). O fetch nativo do
@@ -61,28 +68,38 @@ export function montarFontes(
     );
   }
 
-  if (opcoes.ignorarCache) {
-    return fontesProvedores;
-  }
+  const caches: Fonte[] = opcoes.ignorarCache
+    ? []
+    : [
+        criarFonteCacheLocal(repositorioCache),
+        criarFonteCacheCompartilhado({ baseUrl: cacheApiUrl, transporte: fetch }),
+      ];
 
-  const fontesCache: Fonte[] = [
-    criarFonteCacheLocal(repositorioCache),
-    criarFonteCacheCompartilhado({ baseUrl: cacheApiUrl, transporte: fetch }),
-  ];
+  const provedorEvidencia = usarResultadoExemplo
+    ? undefined
+    : provedorCompartilhado
+      ?? criarProvedorEvidenciaFpsHq({ transporte: expoFetch as typeof fetch });
 
-  return [...fontesCache, ...fontesProvedores];
+  return { caches, provedorEvidencia, geradores };
 }
 
 const repositorioCache = criarRepositorioCacheLocal();
-const fontesPadrao = montarFontes(repositorioCache);
-const fontesSemCache = montarFontes(repositorioCache, { ignorarCache: true });
+const provedorEvidenciaPadrao = usarResultadoExemplo
+  ? undefined
+  : criarProvedorEvidenciaFpsHq({ transporte: expoFetch as typeof fetch });
+const etapasPadrao = montarEtapas(repositorioCache, {}, provedorEvidenciaPadrao);
+const etapasSemCache = montarEtapas(
+  repositorioCache,
+  { ignorarCache: true },
+  provedorEvidenciaPadrao,
+);
 
 export async function createOptmizedSetting(
   consulta: Consulta,
   opcoes: OpcoesConsulta = {},
 ): Promise<ConsultaResultado> {
-  const fontes = opcoes.ignorarCache ? fontesSemCache : fontesPadrao;
-  const resposta = await resolverConsulta(consulta, fontes);
+  const etapas = opcoes.ignorarCache ? etapasSemCache : etapasPadrao;
+  const resposta = await resolverConsulta(consulta, etapas);
 
   if (resposta.ok && !veioDeCache(resposta.resultado.fonte)) {
     try {

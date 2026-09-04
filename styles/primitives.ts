@@ -260,10 +260,58 @@ export const cardStyles = StyleSheet.create({
 
   seloOrigem: {
     marginTop: Espaco.md,
+    gap: Espaco.xs,
   },
 
   textoOrigem: {
     color: Cores.textoTerciario,
+    fontSize: Fonte.tamanhoXs,
+    lineHeight: Fonte.alturaLinhaNormal,
+  },
+
+  evidencia: {
+    marginTop: Espaco.md,
+    padding: Espaco.md,
+    gap: Espaco.xs,
+    borderRadius: Raio.sm,
+    borderWidth: 1,
+    borderColor: Cores.fundoBorda,
+    backgroundColor: Cores.acentoSuave,
+  },
+
+  textoEvidencia: {
+    color: Cores.textoPrimario,
+    fontSize: Fonte.tamanhoSm,
+    fontWeight: Fonte.pesoSemibold,
+    lineHeight: Fonte.alturaLinhaNormal,
+  },
+
+  detalheEvidencia: {
+    color: Cores.textoSecundario,
+    fontSize: Fonte.tamanhoXs,
+    lineHeight: Fonte.alturaLinhaNormal,
+    fontVariant: ['tabular-nums'],
+  },
+
+  linkAtribuicao: {
+    minHeight: Controle.toqueMinimo,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+  },
+
+  linkAtribuicaoPressionado: {
+    opacity: 0.7,
+  },
+
+  textoLinkAtribuicao: {
+    color: Cores.acento,
+    fontSize: Fonte.tamanhoSm,
+    fontWeight: Fonte.pesoSemibold,
+    textDecorationLine: 'underline',
+  },
+
+  textoSemEvidencia: {
+    color: Cores.textoSecundario,
     fontSize: Fonte.tamanhoXs,
     lineHeight: Fonte.alturaLinhaNormal,
   },

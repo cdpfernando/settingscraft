@@ -208,7 +208,7 @@ export default function Index() {
             <Pressable
               onPress={() => router.push('/historico')}
               accessibilityRole="button"
-              accessibilityLabel="Ver histórico de consultas"
+              accessibilityLabel="Histórico"
               hitSlop={8}
               style={headerStyles.acao}
             >
@@ -261,7 +261,7 @@ export default function Index() {
       />
 
       <SeletorOpcoes
-        label="Resolução alvo"
+        label="Resolução"
         opcoes={RESOLUCOES}
         valor={resolucao}
         onChange={setResolucao}

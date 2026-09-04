@@ -83,7 +83,7 @@ export function criarRepositorioCacheLocal(
       return registro?.resultado ?? null;
     },
     salvar(consulta, resultado) {
-      const registro: ItemHistorico = { consulta, resultado };
+      const registro = RegistroCacheSchema.parse({ consulta, resultado });
       return armazenamento.setItem(criarChaveCache(consulta), JSON.stringify(registro));
     },
     async listar() {
@@ -97,7 +97,12 @@ export function criarRepositorioCacheLocal(
       for (const [chave, valor] of pares) {
         if (!valor) continue;
         const registro = await lerRegistro(armazenamento, chave, valor);
-        if (registro) itens.push(registro);
+        if (registro) {
+          itens.push({
+            ...registro,
+            resultado: { ...registro.resultado, fonte: 'salvo' },
+          });
+        }
       }
 
       return itens.sort((a, b) => b.resultado.geradoEm.localeCompare(a.resultado.geradoEm));

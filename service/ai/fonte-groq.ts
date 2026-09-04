@@ -4,11 +4,15 @@ import { APICallError, generateText, Output } from 'ai';
 import {
   ErroFonteConfiguracao,
   ErroFonteLimite,
-  type Fonte,
+  type Gerador,
   type TransporteHttp,
 } from './fonte';
 import { criarPrompt, INSTRUCAO_SISTEMA } from './prompt';
-import { CONTRATO_VERSAO, RespostaIaSchema } from './schema';
+import {
+  criarResultadoGerado,
+  RespostaIaSchema,
+  type EvidenciaDesempenho,
+} from './schema';
 
 const MODEL = 'openai/gpt-oss-120b';
 const TEMPO_LIMITE_MS = 45_000;
@@ -18,12 +22,12 @@ interface FonteGroqOpcoes {
   transporte: TransporteHttp;
 }
 
-export function criarFonteGroq({ apiKey, transporte }: FonteGroqOpcoes): Fonte {
+export function criarFonteGroq({ apiKey, transporte }: FonteGroqOpcoes): Gerador<EvidenciaDesempenho> {
   const groq = createGroq({ apiKey, fetch: transporte });
 
   return {
     nome: 'groq',
-    async buscar(consulta) {
+    async gerar({ consulta, evidencia }) {
       const controlador = new AbortController();
       const temporizador = setTimeout(() => controlador.abort(), TEMPO_LIMITE_MS);
 
@@ -32,16 +36,11 @@ export function criarFonteGroq({ apiKey, transporte }: FonteGroqOpcoes): Fonte {
           model: groq(MODEL),
           output: Output.object({ schema: RespostaIaSchema }),
           instructions: INSTRUCAO_SISTEMA,
-          prompt: criarPrompt(consulta),
+          prompt: criarPrompt(consulta, evidencia),
           abortSignal: controlador.signal,
         });
 
-        return {
-          ...output,
-          fonte: 'groq',
-          geradoEm: new Date().toISOString(),
-          versaoContrato: CONTRATO_VERSAO,
-        };
+        return criarResultadoGerado(output, 'groq', evidencia);
       } catch (erro) {
         if (APICallError.isInstance(erro)) {
           const corpo =

@@ -17,7 +17,13 @@ from sqlmodel import Session, select
 
 from app.cache import criar_chave
 from app.db import criar_tabelas, obter_sessao
-from app.models import EscritaResposta, RegistroCache, RegistroEscrita, ResultadoOut
+from app.models import (
+    CONTRATO_VERSAO,
+    EscritaResposta,
+    RegistroCache,
+    RegistroEscrita,
+    ResultadoOut,
+)
 
 token_header = APIKeyHeader(name="X-Cache-Token", auto_error=False)
 
@@ -73,6 +79,9 @@ def buscar_recomendacao(
     versao_contrato: int = Query(alias="versaoContrato"),
     sessao: Session = Depends(obter_sessao),
 ):
+    if versao_contrato != CONTRATO_VERSAO:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
+
     chave = criar_chave(jogo, placa_video, processador, memoria, resolucao, versao_contrato)
     registro = sessao.exec(select(RegistroCache).where(RegistroCache.chave == chave)).first()
 
@@ -89,6 +98,9 @@ def buscar_recomendacao(
         fonte=registro.fonte,
         gerado_em=registro.gerado_em,
         versao_contrato=registro.versao_contrato,
+        gerado_por=registro.gerado_por,
+        confianca_fps=registro.confianca_fps,
+        evidencia_desempenho=registro.evidencia_desempenho,
     )
 
 
@@ -127,6 +139,11 @@ def escrever_recomendacao(
 
     agora = datetime.now(timezone.utc)
     configuracoes = [c.model_dump() for c in registro.configuracoes]
+    evidencia_desempenho = (
+        registro.evidencia_desempenho.model_dump(mode="json", by_alias=True)
+        if registro.evidencia_desempenho
+        else None
+    )
 
     if existente:
         existente.configuracoes = configuracoes
@@ -134,6 +151,9 @@ def escrever_recomendacao(
         existente.fonte = registro.fonte
         existente.gerado_em = registro.gerado_em
         existente.versao_contrato = registro.versao_contrato
+        existente.gerado_por = registro.gerado_por
+        existente.confianca_fps = registro.confianca_fps
+        existente.evidencia_desempenho = evidencia_desempenho
         existente.atualizado_em = agora
         sessao.add(existente)
         response.status_code = status.HTTP_200_OK
@@ -151,6 +171,9 @@ def escrever_recomendacao(
                 fonte=registro.fonte,
                 gerado_em=registro.gerado_em,
                 versao_contrato=registro.versao_contrato,
+                gerado_por=registro.gerado_por,
+                confianca_fps=registro.confianca_fps,
+                evidencia_desempenho=evidencia_desempenho,
                 reaproveitamentos=0,
                 criado_em=agora,
                 atualizado_em=agora,

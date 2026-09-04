@@ -71,10 +71,10 @@ O servidor normaliza os campos e calcula a chave.
 | `resolucao` | string | sim |
 | `versaoContrato` | int | sim |
 
-Hit devolve `200` no formato `Resultado` e incrementa os reaproveitamentos. Miss devolve `404` vazio. Acima do limite, `429`.
+Hit da versão atual devolve `200` no formato `Resultado` e incrementa os reaproveitamentos. Versões anteriores ficam isoladas pela chave e devolvem `404`; acima do limite, `429`.
 
 ```bash
-curl "http://127.0.0.1:8000/recomendacoes?jogo=Elden%20Ring&placaVideo=RTX%203060&processador=Ryzen%205%205600&memoria=16GB&resolucao=1080p&versaoContrato=1"
+curl "http://127.0.0.1:8000/recomendacoes?jogo=Elden%20Ring&placaVideo=RTX%203060&processador=Ryzen%205%205600&memoria=16GB&resolucao=1080p&versaoContrato=2"
 ```
 
 ### `POST /recomendacoes`
@@ -101,7 +101,24 @@ curl -X POST "http://127.0.0.1:8000/recomendacoes" \
     "fpsEstimado": "60-75 fps",
     "fonte": "gemini",
     "geradoEm": "2026-08-30T12:00:00.000Z",
-    "versaoContrato": 1
+    "versaoContrato": 2,
+    "geradoPor": "gemini",
+    "confiancaFps": "media",
+    "evidenciaDesempenho": {
+      "fonte": "fpshq",
+      "tipo": "benchmark",
+      "correspondencia": "completa",
+      "urlAtribuicao": "https://fpshq.com/games/elden-ring/",
+      "consultadoEm": "2026-08-30T11:59:00.000Z",
+      "jogo": { "slug": "elden-ring", "nome": "Elden Ring" },
+      "placaVideo": { "slug": "rtx-3060", "nome": "GeForce RTX 3060" },
+      "processador": { "slug": "ryzen-5-5600", "nome": "Ryzen 5 5600" },
+      "resolucao": "1080p",
+      "presetReferencia": "high",
+      "fpsMedio": 72,
+      "fpsMinimo": 61,
+      "fpsMaximo": 84
+    }
   }'
 ```
 
@@ -124,3 +141,5 @@ api/
 FastAPI, SQLModel, SQLite, uvicorn, uv, slowapi por IP.
 
 A chave de cache usa a mesma regra do app, minúsculas e espaços colapsados, mas os dois armazenamentos são independentes. As strings não precisam ser iguais. Sem TTL. O `Dockerfile` é o mesmo do Railway.
+
+Esta versão é anterior ao lançamento: bancos de desenvolvimento criados com o contrato 1 devem ser recriados antes de iniciar a API. A migração de um banco SQLite existente foi adiada para uma entrega futura; `create_all` cria instalações vazias, mas não adiciona colunas a uma tabela antiga.

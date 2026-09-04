@@ -1,8 +1,10 @@
 import { Botao } from '@/components/botao';
-import type { Resultado } from '@/service/ai/schema';
+import { formatarConfiancaFps, formatarPresetFpsHq } from '@/service/ai/formatacao';
+import type { FonteEntrega, GeradoPor, Resultado } from '@/service/ai/schema';
 import { cardStyles, layoutStyles, textoStyles } from '@/styles';
+import * as Linking from 'expo-linking';
 import { MotiView } from 'moti';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
 export function formatarDataGeracao(valor: string): string {
@@ -16,6 +18,28 @@ export function formatarDataGeracao(valor: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(data);
+}
+
+function formatarGerador(valor: GeradoPor): string {
+  const rotulos: Record<GeradoPor, string> = {
+    gemini: 'Gemini',
+    groq: 'Groq',
+    exemplo: 'Exemplo',
+  };
+
+  return rotulos[valor];
+}
+
+function formatarFonteEntrega(valor: FonteEntrega): string {
+  const rotulos: Record<FonteEntrega, string> = {
+    salvo: 'cache local',
+    compartilhado: 'cache compartilhado',
+    gemini: 'Gemini',
+    groq: 'Groq',
+    exemplo: 'resultado de exemplo',
+  };
+
+  return rotulos[valor];
 }
 
 interface ResultadoCardProps {
@@ -38,6 +62,17 @@ export function ResultadoCard({
   embutido,
 }: ResultadoCardProps) {
   const movimentoReduzido = useReducedMotion();
+  const evidencia = resultado.evidenciaDesempenho;
+  const descricaoEvidencia = evidencia?.tipo === 'benchmark'
+    ? 'benchmark do FPSHQ'
+    : 'projeção do FPSHQ';
+
+  const abrirAtribuicao = () => {
+    if (!evidencia) return;
+    void Linking.openURL(evidencia.urlAtribuicao).catch((erro) => {
+      console.error('[ResultadoCard] Não foi possível abrir a atribuição do FPSHQ:', erro);
+    });
+  };
 
   return (
     <MotiView
@@ -87,10 +122,49 @@ export function ResultadoCard({
       )}
 
       <View style={cardStyles.seloOrigem}>
-        <Text style={cardStyles.textoOrigem}>
-          {resultado.fonte} · {formatarDataGeracao(resultado.geradoEm)}
+        <Text selectable style={cardStyles.textoOrigem}>
+          Obtido de {formatarFonteEntrega(resultado.fonte)}
+        </Text>
+        <Text selectable style={cardStyles.textoOrigem}>
+          Gerado por {formatarGerador(resultado.geradoPor)} · {formatarDataGeracao(resultado.geradoEm)}
         </Text>
       </View>
+
+      {!!evidencia && (
+        <View style={cardStyles.evidencia}>
+          <Text selectable style={cardStyles.textoEvidencia}>
+            FPS apoiado por {descricaoEvidencia} · confiança {formatarConfiancaFps(resultado.confiancaFps)}
+          </Text>
+          {evidencia.correspondencia === 'parcial' && (
+            <Text selectable style={cardStyles.detalheEvidencia}>
+              Correspondência parcial: processador não localizado no FPSHQ.
+            </Text>
+          )}
+          <Text selectable style={cardStyles.detalheEvidencia}>
+            Referência externa, não configuração final: {formatarPresetFpsHq(evidencia.presetReferencia)}
+            {' '}em {evidencia.resolucao} · média {evidencia.fpsMedio}, mínimo {evidencia.fpsMinimo},
+            {' '}máximo {evidencia.fpsMaximo} FPS
+          </Text>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Abrir dados de FPS no FPSHQ"
+            accessibilityHint="Abre a página de atribuição no navegador"
+            onPress={abrirAtribuicao}
+            style={({ pressed }) => [
+              cardStyles.linkAtribuicao,
+              pressed && cardStyles.linkAtribuicaoPressionado,
+            ]}
+          >
+            <Text style={cardStyles.textoLinkAtribuicao}>Dados de FPS: FPSHQ</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {!evidencia && (
+        <Text selectable style={cardStyles.textoSemEvidencia}>
+          FPS estimado somente pela IA · confiança baixa
+        </Text>
+      )}
 
       {!!aoGerarNovamente && (
         <Botao

@@ -13,6 +13,13 @@ function resumoHardware(item: ItemHistorico): string {
   return `${placaVideo} · ${processador} · ${memoria} · ${resolucao}`;
 }
 
+function resumoEvidencia(item: ItemHistorico): string {
+  const tipo = item.resultado.evidenciaDesempenho?.tipo;
+  if (tipo === 'benchmark') return 'benchmark FPSHQ';
+  if (tipo === 'predicao') return 'projeção FPSHQ';
+  return 'somente IA';
+}
+
 export default function Historico() {
   const router = useRouter();
   const [itens, setItens] = useState<ItemHistorico[]>([]);
@@ -50,7 +57,7 @@ export default function Historico() {
             pressed && historicoStyles.itemPressionado,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Voltar para a lista de histórico"
+          accessibilityLabel="Voltar ao histórico"
         >
           <Text style={historicoStyles.textoBotaoVoltar}>Voltar</Text>
         </Pressable>
@@ -78,7 +85,7 @@ export default function Historico() {
       <View style={historicoStyles.vazioContainer}>
         <Stack.Screen options={{ title: 'Histórico' }} />
         <Text style={historicoStyles.vazioTexto}>
-          Nenhuma consulta ainda. As configurações que você gerar aparecem aqui.
+          Ainda não gerou nada. Quando gerar, a lista enche.
         </Text>
         <View style={historicoStyles.vazioAcao}>
           <Botao titulo="Gerar configurações" onPress={() => router.replace('/')} />
@@ -107,7 +114,7 @@ export default function Historico() {
             <Text style={historicoStyles.itemJogo}>{item.consulta.jogo}</Text>
             <Text style={historicoStyles.itemHardware}>{resumoHardware(item)}</Text>
             <Text style={historicoStyles.itemRodape}>
-              {item.resultado.fonte} · {formatarDataGeracao(item.resultado.geradoEm)}
+              {resumoEvidencia(item)} · {formatarDataGeracao(item.resultado.geradoEm)}
             </Text>
           </Pressable>
         )}

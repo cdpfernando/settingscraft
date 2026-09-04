@@ -2,11 +2,16 @@ import { z } from 'zod';
 import {
   ErroFonteConfiguracao,
   ErroFonteLimite,
-  type Fonte,
+  type Gerador,
   type TransporteHttp,
 } from './fonte';
 import { criarPrompt, INSTRUCAO_SISTEMA } from './prompt';
-import { CONTRATO_VERSAO, RespostaIaSchema, type Resultado } from './schema';
+import {
+  criarResultadoGerado,
+  RespostaIaSchema,
+  type EvidenciaDesempenho,
+  type Resultado,
+} from './schema';
 
 const MODEL = 'gemini-3.6-flash';
 const TEMPO_LIMITE_MS = 45_000;
@@ -37,18 +42,15 @@ function paraSchemaGemini(jsonSchema: Record<string, unknown>): Record<string, u
 const RESPONSE_SCHEMA = paraSchemaGemini(z.toJSONSchema(RespostaIaSchema));
 
 function criarResultadoExemplo(): Resultado {
-  return {
+  return criarResultadoGerado({
     configuracoes: [
-      { nome: 'Qualidade geral', valor: 'Alto', justificativa: 'Equilíbrio entre fidelidade visual e desempenho' },
-      { nome: 'Sombras', valor: 'Médio', justificativa: 'Maior impacto no FPS que ganho visual percebido' },
-      { nome: 'Anti-aliasing', valor: 'TAA', justificativa: 'Suaviza bordas com custo baixo de desempenho' },
-      { nome: 'Distância de renderização', valor: 'Alto', justificativa: 'Placa suporta sem perda perceptível' },
+      { nome: 'Qualidade geral', valor: 'Alto', justificativa: 'Essa placa aguenta Alto sem suar' },
+      { nome: 'Sombras', valor: 'Médio', justificativa: 'Sombras altas comem FPS à toa' },
+      { nome: 'Anti-aliasing', valor: 'TAA', justificativa: 'TAA some com o serrilhado barato' },
+      { nome: 'Distância de renderização', valor: 'Alto', justificativa: 'Não vale reduzir a distância aqui' },
     ],
-    fpsEstimado: '75–90 FPS',
-    fonte: 'exemplo',
-    geradoEm: new Date().toISOString(),
-    versaoContrato: CONTRATO_VERSAO,
-  };
+    fpsEstimado: '75 a 90 FPS',
+  }, 'exemplo');
 }
 
 function deveTentarNovamente(status: number): boolean {
@@ -69,12 +71,12 @@ export function criarFonteGemini({
   apiKey,
   transporte,
   usarResultadoExemplo = false,
-}: FonteGeminiOpcoes): Fonte {
+}: FonteGeminiOpcoes): Gerador<EvidenciaDesempenho> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
   return {
     nome: 'gemini',
-    async buscar(consulta) {
+    async gerar({ consulta, evidencia }) {
       if (usarResultadoExemplo) return criarResultadoExemplo();
 
       for (let tentativa = 0; tentativa < MAXIMO_TENTATIVAS; tentativa += 1) {
@@ -90,7 +92,7 @@ export function criarFonteGemini({
             system_instruction: {
               parts: [{ text: INSTRUCAO_SISTEMA }],
             },
-            contents: [{ parts: [{ text: criarPrompt(consulta) }] }],
+            contents: [{ parts: [{ text: criarPrompt(consulta, evidencia) }] }],
             generationConfig: {
               responseMimeType: 'application/json',
               responseSchema: RESPONSE_SCHEMA,
@@ -134,12 +136,7 @@ export function criarFonteGemini({
           return null;
         }
 
-        return {
-          ...validado.data,
-          fonte: 'gemini',
-          geradoEm: new Date().toISOString(),
-          versaoContrato: CONTRATO_VERSAO,
-        };
+        return criarResultadoGerado(validado.data, 'gemini', evidencia);
         } catch (erro) {
           if (erro instanceof ErroFonteConfiguracao || erro instanceof ErroFonteLimite) throw erro;
           console.error('[fonteGemini] Falha ao consultar o Gemini:', erro);

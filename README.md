@@ -2,7 +2,7 @@
 
 Você diz o jogo, o PC e a resolução. O app devolve as configurações gráficas na ordem do menu, cada uma com um valor, uma justificativa curta e um chute de FPS.
 
-Não gasta IA à toa. Primeiro olha o que já está no aparelho, depois o cache compartilhado, depois Gemini. Groq só entra se o Gemini falhar.
+Não gasta IA à toa. Primeiro olha o que já está no aparelho, depois o cache compartilhado, consulta evidência de desempenho no FPSHQ e só então chama o Gemini. Groq entra se o Gemini falhar e recebe a mesma evidência.
 
 ## Rodando
 
@@ -54,14 +54,32 @@ styles/        tokens e StyleSheets. Sem estilo inline.
 assets/data/   GPUs e CPUs do autocomplete
 ```
 
-A cadeia é montada em `service/ai/generator.ts`: cache local, cache compartilhado, Gemini, Groq. Quem responder primeiro ganha. O cache compartilhado desiste em 1,5s e a cadeia segue. Se a API cair, o jogador não vê erro, só espera a IA.
+A cadeia é montada em `service/ai/generator.ts`: cache local, cache compartilhado, enriquecimento opcional pelo FPSHQ, Gemini e Groq. Os caches continuam tendo prioridade; o FPSHQ apenas ancora a geração e nunca entrega sozinho uma recomendação. O cache compartilhado desiste em 1,5s e o enriquecimento inteiro do FPSHQ tem orçamento máximo de 3s. Se qualquer um deles falhar, o jogador não vê erro e o fluxo segue para a IA.
 
 O schema Zod em `service/ai/schema.ts` é o contrato. O JSON Schema que o Gemini recebe sai dele em runtime. Um segundo schema escrito à mão diverge, e você só percebe quando o parse quebra.
 
 Incrementar `CONTRATO_VERSAO` invalida o cache antigo. Sem TTL. Hardware e jogo não mudam sozinhos.
 
+### Procedência e confiança do FPS
+
+O resultado separa três conceitos que não são equivalentes:
+
+- `fonte` diz por qual elo ele foi obtido agora: cache local (`salvo`), cache compartilhado, Gemini, Groq ou exemplo.
+- `geradoPor` preserva quem criou originalmente a recomendação, mesmo depois de um cache hit.
+- `evidenciaDesempenho` preserva a referência externa do FPSHQ, quando existe, incluindo benchmark/predição, correspondência completa/parcial, preset, resolução, números recebidos, horário e URL de atribuição.
+
+`confiancaFps: media` significa somente que o FPSHQ informou um benchmark com correspondência completa de jogo, GPU, CPU e resolução. Predição, correspondência parcial ou ausência de evidência recebem confiança `baixa`. Nenhum resultado desta versão recebe confiança alta: o FPSHQ mede ou projeta um preset completo, não cada opção individual escolhida. `fps_min` permanece identificado como mínimo informado pelo FPSHQ e não é chamado de “1% low”. O menu final e sua faixa de FPS continuam sendo inferências da IA ancoradas, quando possível, por essa evidência.
+
+## Uso responsável do FPSHQ
+
+A integração usa somente os endpoints REST documentados em `https://fpshq.com/api-docs/`; scraping de páginas não é permitido no projeto. A API não exige chave, portanto nenhuma credencial pública nova é adicionada ao bundle.
+
+O FPSHQ pede atribuição visível e informa uso justo aproximado de 60 requisições por minuto por IP. O app preserva o link devolvido pela API, identifica separadamente benchmarks e predições, deduplica consultas simultâneas e reutiliza evidência apenas durante o `max-age` publicado em `Cache-Control`. Uso sustentado acima desse limite exige combinar acesso próprio com o FPSHQ.
+
+Antes de qualquer lançamento comercial, o responsável pelo produto precisa obter confirmação escrita do FPSHQ para o uso planejado. Consumir somente a API documentada, manter atribuição e respeitar uso justo reduz o risco, mas não substitui essa confirmação.
+
 ## O que ainda está torto
 
-A chave da IA no bundle. Sem testes automatizados de propósito; o resolvedor aceita fontes injetadas para quando isso entrar. O backend é cache, não proxy. O app continua falando com a IA direto.
+A chave da IA no bundle. O backend é cache, não proxy. O app continua falando com a IA direto.
 
-`npm run lint` e `npx tsc --noEmit` precisam passar.
+`npm test`, `npm run lint` e `npm run typecheck` precisam passar.

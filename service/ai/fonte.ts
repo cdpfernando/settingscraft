@@ -13,6 +13,21 @@ export interface Fonte {
   buscar(consulta: Consulta): Promise<Resultado | null>;
 }
 
+export interface ProvedorEvidencia<TEvidencia = unknown> {
+  nome: string;
+  buscar(consulta: Consulta): Promise<TEvidencia | null>;
+}
+
+export interface ContextoGeracao<TEvidencia = unknown> {
+  consulta: Consulta;
+  evidencia?: TEvidencia;
+}
+
+export interface Gerador<TEvidencia = unknown> {
+  nome: string;
+  gerar(contexto: ContextoGeracao<TEvidencia>): Promise<Resultado | null>;
+}
+
 export type TransporteHttp = typeof fetch;
 
 export class ErroFonteConfiguracao extends Error {
