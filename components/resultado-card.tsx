@@ -33,7 +33,6 @@ function formatarGerador(valor: GeradoPor): string {
 function formatarFonteEntrega(valor: FonteEntrega): string {
   const rotulos: Record<FonteEntrega, string> = {
     salvo: 'cache local',
-    compartilhado: 'cache compartilhado',
     gemini: 'Gemini',
     groq: 'Groq',
     exemplo: 'resultado de exemplo',

@@ -2,7 +2,7 @@
 
 Você diz o jogo, o PC e a resolução. O app devolve as configurações gráficas na ordem do menu, cada uma com um valor, uma justificativa curta e um chute de FPS.
 
-Não gasta IA à toa. Primeiro olha o que já está no aparelho, depois o cache compartilhado, consulta evidência de desempenho no FPSHQ e só então chama o Gemini. Groq entra se o Gemini falhar e recebe a mesma evidência.
+Não gasta IA à toa. Primeiro olha o que já está no aparelho, consulta evidência de desempenho no FPSHQ e só então chama o Gemini. Groq entra se o Gemini falhar e recebe a mesma evidência.
 
 ## Rodando
 
@@ -20,15 +20,6 @@ EXPO_PUBLIC_GROQ_API_KEY=sua_chave_aqui
 ```
 
 `EXPO_PUBLIC_*` entra no bundle em build time. A chave do Gemini fica no cliente. Para produção, a chamada tem que sair do app.
-
-O cache compartilhado já aponta para a instância no Railway. Só configure URL se for rodar a API você mesmo:
-
-```
-EXPO_PUBLIC_CACHE_API_URL=http://192.168.0.10:8000
-EXPO_PUBLIC_CACHE_API_TOKEN=
-```
-
-Use o IP da máquina na LAN. `localhost` no celular não chega na sua API. Token só entra se o servidor tiver `CACHE_WRITE_TOKEN`. O resto está em [`api/README.md`](api/README.md).
 
 Para mexer no layout sem gastar quota:
 
@@ -48,13 +39,12 @@ Expo SDK 54, expo-router v6, React Native 0.81, React 19. Gemini via `fetch`. Gr
 
 ```
 app/           telas
-service/ai/    cadeia de fontes e o schema Zod
-api/           FastAPI do cache compartilhado
+service/ai/    recomendação, adapters e schema Zod
 styles/        tokens e StyleSheets. Sem estilo inline.
 assets/data/   GPUs e CPUs do autocomplete
 ```
 
-A cadeia é montada em `service/ai/generator.ts`: cache local, cache compartilhado, enriquecimento opcional pelo FPSHQ, Gemini e Groq. Os caches continuam tendo prioridade; o FPSHQ apenas ancora a geração e nunca entrega sozinho uma recomendação. O cache compartilhado desiste em 1,5s e o enriquecimento inteiro do FPSHQ tem orçamento máximo de 3s. Se qualquer um deles falhar, o jogador não vê erro e o fluxo segue para a IA.
+A recomendação é entregue por `service/ai/recomendador.ts`, cuja interface é `consultarConfiguracoes`. O módulo impõe a ordem cache local, enriquecimento opcional pelo FPSHQ, Gemini e Groq; o cache continua tendo prioridade e o FPSHQ apenas ancora a geração, nunca entrega sozinho uma recomendação. Gemini, Groq e o gerador de exemplo devolvem somente o conteúdo validado; o recomendador acrescenta procedência, horário, versão, confiança e evidência, valida o resultado final e então o persiste. O enriquecimento inteiro do FPSHQ tem orçamento máximo de 3s. Se ele falhar, o jogador não vê erro e o fluxo segue para a IA. Para gerar de novo, a tela expressa a intenção com `forcarNovaRecomendacao`, que pula apenas a leitura do cache e preserva a gravação do novo resultado.
 
 O schema Zod em `service/ai/schema.ts` é o contrato. O JSON Schema que o Gemini recebe sai dele em runtime. Um segundo schema escrito à mão diverge, e você só percebe quando o parse quebra.
 
@@ -64,7 +54,7 @@ Incrementar `CONTRATO_VERSAO` invalida o cache antigo. Sem TTL. Hardware e jogo 
 
 O resultado separa três conceitos que não são equivalentes:
 
-- `fonte` diz por qual elo ele foi obtido agora: cache local (`salvo`), cache compartilhado, Gemini, Groq ou exemplo.
+- `fonte` diz por qual elo ele foi obtido agora: cache local (`salvo`), Gemini, Groq ou exemplo.
 - `geradoPor` preserva quem criou originalmente a recomendação, mesmo depois de um cache hit.
 - `evidenciaDesempenho` preserva a referência externa do FPSHQ, quando existe, incluindo benchmark/predição, correspondência completa/parcial, preset, resolução, números recebidos, horário e URL de atribuição.
 
@@ -74,12 +64,12 @@ O resultado separa três conceitos que não são equivalentes:
 
 A integração usa somente os endpoints REST documentados em `https://fpshq.com/api-docs/`; scraping de páginas não é permitido no projeto. A API não exige chave, portanto nenhuma credencial pública nova é adicionada ao bundle.
 
-O FPSHQ pede atribuição visível e informa uso justo aproximado de 60 requisições por minuto por IP. O app preserva o link devolvido pela API, identifica separadamente benchmarks e predições, deduplica consultas simultâneas e reutiliza evidência apenas durante o `max-age` publicado em `Cache-Control`. Uso sustentado acima desse limite exige combinar acesso próprio com o FPSHQ.
+O FPSHQ pede atribuição visível e informa uso justo aproximado de 60 requisições por minuto por IP. O app preserva o link devolvido pela API e identifica separadamente benchmarks e predições. Uso sustentado acima desse limite exige combinar acesso próprio com o FPSHQ.
 
 Antes de qualquer lançamento comercial, o responsável pelo produto precisa obter confirmação escrita do FPSHQ para o uso planejado. Consumir somente a API documentada, manter atribuição e respeitar uso justo reduz o risco, mas não substitui essa confirmação.
 
 ## O que ainda está torto
 
-A chave da IA no bundle. O backend é cache, não proxy. O app continua falando com a IA direto.
+A chave da IA continua no bundle. Para produção, a chamada precisa sair do app.
 
 `npm test`, `npm run lint` e `npm run typecheck` precisam passar.

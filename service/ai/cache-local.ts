@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
 
 import type { ArmazenamentoChaveValor } from '../armazenamento';
-import type { Consulta, Fonte } from './fonte';
+import type { Consulta } from './fonte';
 import { CONTRATO_VERSAO, ResultadoSchema, type Resultado } from './schema';
 
 export type { ArmazenamentoChaveValor } from '../armazenamento';
@@ -106,16 +106,6 @@ export function criarRepositorioCacheLocal(
       }
 
       return itens.sort((a, b) => b.resultado.geradoEm.localeCompare(a.resultado.geradoEm));
-    },
-  };
-}
-
-export function criarFonteCacheLocal(repositorio: RepositorioCacheLocal): Fonte {
-  return {
-    nome: 'cache-local',
-    async buscar(consulta) {
-      const resultado = await repositorio.buscar(consulta);
-      return resultado ? { ...resultado, fonte: 'salvo' } : null;
     },
   };
 }

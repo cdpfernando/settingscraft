@@ -1,6 +1,6 @@
 # SettingsCraft
 
-Expo SDK 54. O jogador informa hardware e jogo. O app percorre cache local, cache compartilhado, Gemini e Groq, e devolve o menu gráfico preenchido.
+Expo SDK 54. O jogador informa hardware e jogo. O app percorre cache local, Gemini e Groq, e devolve o menu gráfico preenchido.
 
 ## Expo mudou. Leia a doc da versão certa.
 
@@ -19,9 +19,8 @@ Padrões que já pegaram gente aqui:
 ```
 app/                  rotas. _layout.tsx é o Stack; index.tsx a consulta; historico.tsx o histórico
 service/ai/
-  fonte.ts            Consulta, Fonte, TransporteHttp, erros da cadeia
-  resolvedor.ts       percorre as fontes, para na primeira que responder
-  generator.ts        monta a cadeia e expõe createOptmizedSetting()
+  fonte.ts            Consulta, contratos dos adapters, transporte HTTP e erros
+  recomendador.ts     módulo deep: monta e percorre a cadeia, persiste e expõe consultarConfiguracoes()
   schema.ts           Zod do contrato Resultado / RespostaIa
   prompt.ts           instrução de sistema e prompt, iguais para Gemini e Groq
 styles/
@@ -36,17 +35,17 @@ Alias `@/*` aponta para a raiz (`tsconfig.json`).
 
 `schema.ts` declara `RespostaIaSchema` uma vez. `fonte-gemini.ts` deriva o JSON Schema do Gemini disso (`z.toJSONSchema`, filtrado em `paraSchemaGemini`). Não escreva um JSON Schema paralelo. Os dois divergem, e a divergência só aparece quando o parse falha.
 
-A resposta da IA passa por `RespostaIaSchema` antes de virar `Resultado`. `configuracoes` e `fpsEstimado` vêm da IA. `fonte`, `geradoEm` e `versaoContrato` a fonte preenche na hora.
+A resposta da IA passa por `RespostaIaSchema` antes de virar `Resultado`. `configuracoes` e `fpsEstimado` vêm do gerador. O recomendador acrescenta e valida os metadados finais, a confiança e a evidência antes de persistir ou devolver.
 
 ## Cadeia
 
-Ordem: cache local, cache compartilhado, Gemini, Groq.
+Ordem: cache local, Gemini, Groq.
 
-- `createOptmizedSetting()` nunca lança. Devolve `ConsultaResultado`: `{ ok: true, resultado }` ou `{ ok: false, erro }`. A tela não tem try/catch.
+- `consultarConfiguracoes()` nunca lança. Devolve `ConsultaResultado`: `{ ok: true, resultado }` ou `{ ok: false, erro }`. A tela não tem try/catch.
 - 429 tem mensagem própria.
-- Fonte sem credencial fica de fora da cadeia. Não vira erro em runtime.
+- Adapter sem credencial fica de fora da cadeia. Não vira erro em runtime.
 - 401 e 400 param a cadeia. Não adianta tentar o próximo provedor.
-- `EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true` devolve um `Resultado` fixo, sem rede.
+- `EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true` usa um gerador in-process identificado como `exemplo`, sem rede.
 
 Gemini é REST direto em `generativelanguage.googleapis.com/v1beta`. Modelo no topo de `fonte-gemini.ts`. Groq entra pelo AI SDK. Modelo no topo de `fonte-groq.ts`.
 

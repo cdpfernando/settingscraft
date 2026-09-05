@@ -1,4 +1,4 @@
-import type { Resultado } from './schema';
+import type { EvidenciaDesempenho, GeradoPor, RespostaIa } from './schema';
 
 export interface Consulta {
   jogo: string;
@@ -8,24 +8,19 @@ export interface Consulta {
   resolucao: string;
 }
 
-export interface Fonte {
+export interface ProvedorEvidencia {
   nome: string;
-  buscar(consulta: Consulta): Promise<Resultado | null>;
+  buscar(consulta: Consulta): Promise<EvidenciaDesempenho | null>;
 }
 
-export interface ProvedorEvidencia<TEvidencia = unknown> {
-  nome: string;
-  buscar(consulta: Consulta): Promise<TEvidencia | null>;
-}
-
-export interface ContextoGeracao<TEvidencia = unknown> {
+export interface ContextoGeracao {
   consulta: Consulta;
-  evidencia?: TEvidencia;
+  evidencia?: EvidenciaDesempenho;
 }
 
-export interface Gerador<TEvidencia = unknown> {
-  nome: string;
-  gerar(contexto: ContextoGeracao<TEvidencia>): Promise<Resultado | null>;
+export interface Gerador {
+  nome: GeradoPor;
+  gerar(contexto: ContextoGeracao): Promise<RespostaIa | null>;
 }
 
 export type TransporteHttp = typeof fetch;

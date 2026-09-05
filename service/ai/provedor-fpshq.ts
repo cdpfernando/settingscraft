@@ -47,39 +47,14 @@ type ItemBusca = z.infer<typeof ItemBuscaSchema>;
 type ResolucaoFpsHq = EvidenciaDesempenho['resolucao'];
 type PresetFpsHq = (typeof PRESETS)[number];
 type RespostaFps = z.infer<typeof RespostaFpsSchema>;
-type CategoriaFalha =
-  | 'cancelamento'
-  | 'http-4xx'
-  | 'http-429'
-  | 'http-5xx'
-  | 'json-invalido'
-  | 'rede'
-  | 'schema-invalido'
-  | 'tempo-limite';
-
-interface RespostaValidada<T> {
-  dados: T;
-  cachePorMs: number;
-}
 
 type ResolucaoEntidade =
-  | { estado: 'resolvida'; item: ItemBusca; cachePorMs: number }
-  | { estado: 'sem-correspondencia'; item: null; cachePorMs: number }
-  | { estado: 'falha'; item: null; cachePorMs: 0 };
-
-interface ResultadoEnriquecimento {
-  evidencia: EvidenciaDesempenho;
-  cachePorMs: number;
-}
-
-interface EntradaCache {
-  evidencia: EvidenciaDesempenho;
-  expiraEm: number;
-}
+  | { estado: 'resolvida'; item: ItemBusca }
+  | { estado: 'sem-correspondencia'; item: null }
+  | { estado: 'falha'; item: null };
 
 export interface ProvedorFpsHqOpcoes {
   transporte: TransporteHttp;
-  agora?: () => Date;
   tempoLimiteMs?: number;
 }
 
@@ -110,83 +85,25 @@ function mapearResolucao(valor: string): ResolucaoFpsHq | null {
   return resolucoes[normalizarNome(valor)] ?? null;
 }
 
-function chaveConsulta(consulta: Consulta): string {
-  return JSON.stringify([
-    normalizarNome(consulta.jogo),
-    normalizarNome(consulta.placaVideo),
-    normalizarNome(consulta.processador),
-    normalizarNome(consulta.resolucao),
-  ]);
-}
-
-function duracaoCacheMs(cacheControl: string | null): number {
-  if (!cacheControl || /(?:^|,)\s*(?:no-store|no-cache)\b/i.test(cacheControl)) return 0;
-
-  const correspondencia = /(?:^|,)\s*max-age\s*=\s*"?(\d+)"?/i.exec(cacheControl);
-  if (!correspondencia) return 0;
-
-  const segundos = Number(correspondencia[1]);
-  return Number.isSafeInteger(segundos) && segundos > 0 ? segundos * 1_000 : 0;
-}
-
-function registrarFalha(
-  estagio: string,
-  status: number | 'sem-resposta',
-  categoria: CategoriaFalha,
-): void {
-  console.warn(`[provedorFpsHq] estagio=${estagio} status=${status} categoria=${categoria}`);
-}
-
-function categoriaHttp(status: number): CategoriaFalha {
-  if (status === 429) return 'http-429';
-  if (status >= 500) return 'http-5xx';
-  return 'http-4xx';
-}
-
 async function consultarJson<T>(
   transporte: TransporteHttp,
   url: string,
   sinal: AbortSignal,
-  estagio: string,
   schema: z.ZodType<T>,
-): Promise<RespostaValidada<T> | null> {
-  let resposta: Response;
-
+): Promise<T | null> {
   try {
-    resposta = await transporte(url, {
+    const resposta = await transporte(url, {
       headers: { Accept: 'application/json' },
       signal: sinal,
     });
-  } catch (erro) {
-    const cancelado = sinal.aborted
-      || (erro instanceof Error && erro.name === 'AbortError');
-    registrarFalha(estagio, 'sem-resposta', cancelado ? 'cancelamento' : 'rede');
-    return null;
-  }
+    if (!resposta.ok) return null;
 
-  if (!resposta.ok) {
-    registrarFalha(estagio, resposta.status, categoriaHttp(resposta.status));
-    return null;
-  }
-
-  let bruto: unknown;
-  try {
-    bruto = await resposta.json();
+    const bruto: unknown = await resposta.json();
+    const validado = schema.safeParse(bruto);
+    return validado.success ? validado.data : null;
   } catch {
-    registrarFalha(estagio, resposta.status, 'json-invalido');
     return null;
   }
-
-  const validado = schema.safeParse(bruto);
-  if (!validado.success) {
-    registrarFalha(estagio, resposta.status, 'schema-invalido');
-    return null;
-  }
-
-  return {
-    dados: validado.data,
-    cachePorMs: duracaoCacheMs(resposta.headers.get('cache-control')),
-  };
 }
 
 async function resolverEntidade(
@@ -200,28 +117,17 @@ async function resolverEntidade(
     transporte,
     `${BASE_URL}/search?${query}`,
     sinal,
-    `busca-${tipo}`,
     RespostaBuscaSchema,
   );
-  if (!resposta) return { estado: 'falha', item: null, cachePorMs: 0 };
+  if (!resposta) return { estado: 'falha', item: null };
 
-  const correspondencias = resposta.dados.results.filter(
+  const correspondencias = resposta.results.filter(
     (item) => item.type === tipo && nomesEquivalentes(nome, item.name),
   );
 
-  if (correspondencias.length !== 1) {
-    return {
-      estado: 'sem-correspondencia',
-      item: null,
-      cachePorMs: resposta.cachePorMs,
-    };
-  }
-
-  return {
-    estado: 'resolvida',
-    item: correspondencias[0],
-    cachePorMs: resposta.cachePorMs,
-  };
+  return correspondencias.length === 1
+    ? { estado: 'resolvida', item: correspondencias[0] }
+    : { estado: 'sem-correspondencia', item: null };
 }
 
 function correspondeConsulta(
@@ -243,24 +149,6 @@ function correspondeConsulta(
     && resposta.preset === preset;
 }
 
-function possuiAnomaliaDeOrdem(resultados: readonly RespostaFps[]): boolean {
-  const porPreset = new Map(resultados.map((resultado) => [resultado.preset, resultado]));
-
-  return PRESETS.some((presetMenor, indiceMenor) => {
-    const resultadoMenor = porPreset.get(presetMenor);
-    if (!resultadoMenor) return false;
-
-    return PRESETS.slice(indiceMenor + 1).some((presetMaior) => {
-      const resultadoMaior = porPreset.get(presetMaior);
-      return !!resultadoMaior && (
-        resultadoMaior.fps_min > resultadoMenor.fps_min
-        || resultadoMaior.fps > resultadoMenor.fps
-        || resultadoMaior.fps_max > resultadoMenor.fps_max
-      );
-    });
-  });
-}
-
 function selecionarReferencia(resultados: readonly RespostaFps[]): RespostaFps | null {
   const porQualidade = [...resultados].sort(
     (a, b) => PRESETS.indexOf(b.preset) - PRESETS.indexOf(a.preset),
@@ -278,29 +166,22 @@ function selecionarReferencia(resultados: readonly RespostaFps[]): RespostaFps |
   )[0] ?? null;
 }
 
-function menorDuracaoCache(valores: readonly number[]): number {
-  return valores.length > 0 && valores.every((valor) => valor > 0)
-    ? Math.min(...valores)
-    : 0;
-}
-
 async function enriquecer(
   transporte: TransporteHttp,
   consulta: Consulta,
   resolucao: ResolucaoFpsHq,
   sinal: AbortSignal,
-  agora: () => Date,
-): Promise<ResultadoEnriquecimento | null> {
+): Promise<EvidenciaDesempenho | null> {
   const [jogoResolvido, placaVideoResolvida, processadorResolvido] = await Promise.all([
     resolverEntidade(transporte, 'game', consulta.jogo, sinal),
     resolverEntidade(transporte, 'gpu', consulta.placaVideo, sinal),
     resolverEntidade(transporte, 'cpu', consulta.processador, sinal),
   ]);
   const buscaFalhou = [jogoResolvido, placaVideoResolvida, processadorResolvido]
-    .some((resolucaoEntidade) => resolucaoEntidade.estado === 'falha');
+    .some((entidade) => entidade.estado === 'falha');
+  if (buscaFalhou) throw new Error('Falha ao consultar entidades no FPSHQ.');
   if (
-    buscaFalhou
-    || jogoResolvido.estado !== 'resolvida'
+    jogoResolvido.estado !== 'resolvida'
     || placaVideoResolvida.estado !== 'resolvida'
     || sinal.aborted
   ) return null;
@@ -319,12 +200,10 @@ async function enriquecer(
     };
     if (processador) parametros.cpu = processador.slug;
 
-    const query = new URLSearchParams(parametros);
     return consultarJson(
       transporte,
-      `${BASE_URL}/fps?${query}`,
+      `${BASE_URL}/fps?${new URLSearchParams(parametros)}`,
       sinal,
-      `fps-${preset}`,
       RespostaFpsSchema,
     );
   }));
@@ -333,30 +212,27 @@ async function enriquecer(
   const resultadosValidos = respostas.flatMap((resposta, indice) => {
     if (!resposta) return [];
 
-    const preset = PRESETS[indice];
     return correspondeConsulta(
-      resposta.dados,
+      resposta,
       jogo,
       placaVideo,
       processador,
       resolucao,
-      preset,
-    ) ? [resposta.dados] : [];
+      PRESETS[indice],
+    ) ? [resposta] : [];
   });
-
-  if (possuiAnomaliaDeOrdem(resultadosValidos)) {
-    console.warn('[provedorFpsHq] estagio=presets status=200 categoria=ordem-nao-monotonica');
-  }
-
   const referencia = selecionarReferencia(resultadosValidos);
+  if (!referencia && respostas.every((resposta) => resposta === null)) {
+    throw new Error('Falha ao consultar presets no FPSHQ.');
+  }
   if (!referencia) return null;
 
-  const evidencia = EvidenciaDesempenhoSchema.parse({
+  return EvidenciaDesempenhoSchema.parse({
     fonte: 'fpshq',
     tipo: referencia.source === 'benchmark' ? 'benchmark' : 'predicao',
     correspondencia: processador ? 'completa' : 'parcial',
     urlAtribuicao: referencia.url,
-    consultadoEm: agora().toISOString(),
+    consultadoEm: new Date().toISOString(),
     jogo: { slug: referencia.game.slug, nome: referencia.game.name },
     placaVideo: { slug: referencia.gpu.slug, nome: referencia.gpu.name },
     processador: processador
@@ -368,82 +244,42 @@ async function enriquecer(
     fpsMinimo: referencia.fps_min,
     fpsMaximo: referencia.fps_max,
   });
-
-  return {
-    evidencia,
-    cachePorMs: menorDuracaoCache([
-      jogoResolvido.cachePorMs,
-      placaVideoResolvida.cachePorMs,
-      processadorResolvido.cachePorMs,
-      ...respostas.map((resposta) => resposta?.cachePorMs ?? 0),
-    ]),
-  };
 }
 
 export function criarProvedorEvidenciaFpsHq({
   transporte,
-  agora = () => new Date(),
   tempoLimiteMs = TEMPO_LIMITE_PADRAO_MS,
-}: ProvedorFpsHqOpcoes): ProvedorEvidencia<EvidenciaDesempenho> {
-  const cache = new Map<string, EntradaCache>();
-  const consultasEmVoo = new Map<string, Promise<EvidenciaDesempenho | null>>();
-
-  async function buscarSemCache(
-    consulta: Consulta,
-    resolucao: ResolucaoFpsHq,
-    chave: string,
-  ): Promise<EvidenciaDesempenho | null> {
-    const controlador = new AbortController();
-    let temporizador: ReturnType<typeof setTimeout> | undefined;
-
-    const tempoEsgotado = new Promise<null>((resolve) => {
-      temporizador = setTimeout(() => {
-        controlador.abort();
-        registrarFalha('orcamento', 'sem-resposta', 'tempo-limite');
-        resolve(null);
-      }, tempoLimiteMs);
-    });
-
-    try {
-      const resultado = await Promise.race([
-        enriquecer(transporte, consulta, resolucao, controlador.signal, agora),
-        tempoEsgotado,
-      ]);
-      if (!resultado) return null;
-
-      if (resultado.cachePorMs > 0) {
-        cache.set(chave, {
-          evidencia: resultado.evidencia,
-          expiraEm: agora().getTime() + resultado.cachePorMs,
-        });
-      }
-
-      return resultado.evidencia;
-    } finally {
-      if (temporizador) clearTimeout(temporizador);
-    }
-  }
-
+}: ProvedorFpsHqOpcoes): ProvedorEvidencia {
   return {
     nome: 'fpshq',
-    buscar(consulta) {
+    async buscar(consulta) {
       const resolucao = mapearResolucao(consulta.resolucao);
-      if (!resolucao) return Promise.resolve(null);
+      if (!resolucao) return null;
 
-      const chave = chaveConsulta(consulta);
-      const armazenado = cache.get(chave);
-      if (armazenado && armazenado.expiraEm > agora().getTime()) {
-        return Promise.resolve(armazenado.evidencia);
+      const controlador = new AbortController();
+      let temporizador: ReturnType<typeof setTimeout> | undefined;
+      let excedeuTempoLimite = false;
+      const tempoEsgotado = new Promise<null>((resolve) => {
+        temporizador = setTimeout(() => {
+          excedeuTempoLimite = true;
+          controlador.abort();
+          resolve(null);
+        }, tempoLimiteMs);
+      });
+
+      try {
+        const evidencia = await Promise.race([
+          enriquecer(transporte, consulta, resolucao, controlador.signal),
+          tempoEsgotado,
+        ]);
+        if (excedeuTempoLimite) console.warn('[provedorFpsHq] Evidência indisponível.');
+        return evidencia;
+      } catch {
+        console.warn('[provedorFpsHq] Evidência indisponível.');
+        return null;
+      } finally {
+        if (temporizador) clearTimeout(temporizador);
       }
-      if (armazenado) cache.delete(chave);
-
-      const existente = consultasEmVoo.get(chave);
-      if (existente) return existente;
-
-      const consultaEmVoo = buscarSemCache(consulta, resolucao, chave)
-        .finally(() => consultasEmVoo.delete(chave));
-      consultasEmVoo.set(chave, consultaEmVoo);
-      return consultaEmVoo;
     },
   };
 }

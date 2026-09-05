@@ -74,7 +74,6 @@ export type ConfiancaFps = z.infer<typeof ConfiancaFpsSchema>;
 
 export const FonteEntregaSchema = z.enum([
   'salvo',
-  'compartilhado',
   'gemini',
   'groq',
   'exemplo',
@@ -103,25 +102,3 @@ export const ResultadoSchema = RespostaIaSchema.extend({
 });
 
 export type Resultado = z.infer<typeof ResultadoSchema>;
-
-export function criarResultadoGerado(
-  resposta: RespostaIa,
-  geradoPor: GeradoPor,
-  evidencia?: EvidenciaDesempenho,
-): Resultado {
-  const resultado: Resultado = {
-    ...resposta,
-    fonte: geradoPor,
-    geradoPor,
-    geradoEm: new Date().toISOString(),
-    versaoContrato: CONTRATO_VERSAO,
-    confiancaFps:
-      evidencia?.tipo === 'benchmark' && evidencia.correspondencia === 'completa'
-        ? 'media'
-        : 'baixa',
-    evidenciaDesempenho: evidencia ?? null,
-  };
-
-  ResultadoSchema.parse(resultado);
-  return resultado;
-}

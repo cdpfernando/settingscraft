@@ -9,7 +9,7 @@ import { Botao } from '@/components/botao';
 import { LembrarHardware } from '@/components/lembrar-hardware';
 import { ResultadoCard } from '@/components/resultado-card';
 import { SeletorOpcoes } from '@/components/seletor-opcoes';
-import { createOptmizedSetting } from '@/service/ai/generator';
+import { recomendadorPadrao } from '@/service/ai/recomendador-padrao';
 import type { Resultado } from '@/service/ai/schema';
 import {
   criarRepositorioHardwareLembrado,
@@ -143,7 +143,7 @@ export default function Index() {
     setErroApi('');
     setIsLoading(true);
 
-    const resposta = await createOptmizedSetting({
+    const resposta = await recomendadorPadrao.consultarConfiguracoes({
       jogo,
       placaVideo,
       processador,
@@ -175,7 +175,7 @@ export default function Index() {
     setErroApi('');
     setIsGerandoNovamente(true);
 
-    const resposta = await createOptmizedSetting(
+    const resposta = await recomendadorPadrao.consultarConfiguracoes(
       {
         jogo,
         placaVideo,
@@ -183,7 +183,7 @@ export default function Index() {
         memoria,
         resolucao,
       },
-      { ignorarCache: true },
+      { forcarNovaRecomendacao: true },
     );
 
     if (resposta.ok) {
