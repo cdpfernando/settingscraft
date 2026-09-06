@@ -2,17 +2,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
 
 import type { ArmazenamentoChaveValor } from './armazenamento';
+import {
+  OPCOES_MEMORIA,
+  RESOLUCOES,
+  type Memoria,
+  type Resolucao,
+} from './consulta-configuracoes';
 
 export const CHAVE_HARDWARE_LEMBRADO = '@settingscraft/hardware-lembrado';
 
-const HardwareLembradoSchema = z.object({
-  placaVideo: z.string().min(1),
-  processador: z.string().min(1),
-  memoria: z.string().min(1),
-  resolucao: z.string().min(1),
-});
+const TextoLivreNaoVazioSchema = z.string().refine((valor) => valor.trim().length > 0);
 
-export type HardwareLembrado = z.infer<typeof HardwareLembradoSchema>;
+export interface HardwareLembrado {
+  readonly placaVideo: string;
+  readonly processador: string;
+  readonly memoria: Memoria;
+  readonly resolucao: Resolucao;
+}
+
+const HardwareLembradoSchema: z.ZodType<HardwareLembrado> = z.object({
+  placaVideo: TextoLivreNaoVazioSchema,
+  processador: TextoLivreNaoVazioSchema,
+  memoria: z.enum(OPCOES_MEMORIA),
+  resolucao: z.enum(RESOLUCOES),
+});
 
 export interface RepositorioHardwareLembrado {
   ler(): Promise<HardwareLembrado | null>;
@@ -23,10 +36,21 @@ export interface RepositorioHardwareLembrado {
 export function criarRepositorioHardwareLembrado(
   armazenamento: ArmazenamentoChaveValor = AsyncStorage,
 ): RepositorioHardwareLembrado {
+  const removerRegistroInvalido = async (): Promise<void> => {
+    try {
+      await armazenamento.removeItem(CHAVE_HARDWARE_LEMBRADO);
+    } catch (erro) {
+      console.error(
+        '[hardwareLembrado] Não foi possível remover o registro inválido:',
+        erro,
+      );
+    }
+  };
+
   return {
     async ler() {
       const armazenado = await armazenamento.getItem(CHAVE_HARDWARE_LEMBRADO);
-      if (!armazenado) return null;
+      if (armazenado === null) return null;
 
       try {
         const registro = HardwareLembradoSchema.safeParse(JSON.parse(armazenado));
@@ -35,11 +59,13 @@ export function criarRepositorioHardwareLembrado(
             '[hardwareLembrado] Registro armazenado não corresponde ao contrato:',
             registro.error.issues,
           );
+          await removerRegistroInvalido();
           return null;
         }
         return registro.data;
       } catch (erro) {
         console.error('[hardwareLembrado] Não foi possível ler o registro armazenado:', erro);
+        await removerRegistroInvalido();
         return null;
       }
     },

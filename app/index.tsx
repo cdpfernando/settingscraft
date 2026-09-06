@@ -120,9 +120,14 @@ export default function Index() {
     definirLembrarHardware(ligado);
 
     if (ligado) {
-      void repositorioHardware.ler().then((perfil) => {
-        if (perfil && lembrarHardwareRef.current) aplicarHardware(perfil);
-      });
+      void repositorioHardware
+        .ler()
+        .then((perfil) => {
+          if (perfil && lembrarHardwareRef.current) aplicarHardware(perfil);
+        })
+        .catch((erro) => {
+          console.error('[consulta] Não foi possível ler o hardware lembrado:', erro);
+        });
       return;
     }
 
@@ -167,10 +172,27 @@ export default function Index() {
     return criacao.consulta;
   };
 
+  const salvarHardwareSePreferido = (consulta: ConsultaConfiguracoes) => {
+    if (!lembrarHardwareRef.current) return;
+
+    void repositorioHardware
+      .salvar({
+        placaVideo: consulta.placaVideo,
+        processador: consulta.processador,
+        memoria: consulta.memoria,
+        resolucao: consulta.resolucao,
+      })
+      .catch((erro) => {
+        console.error('[consulta] Não foi possível lembrar o hardware:', erro);
+      });
+  };
+
   const gerarConfiguracoes = async () => {
     if (desabilitado) return;
     const consulta = construirConsultaFormulario();
     if (!consulta) return;
+
+    salvarHardwareSePreferido(consulta);
 
     Keyboard.dismiss();
     setResultado(null);
@@ -182,18 +204,6 @@ export default function Index() {
     if (resposta.ok) {
       setResultado(resposta.resultado);
       setConsultaExibida(consulta);
-      if (lembrarHardwareRef.current) {
-        void repositorioHardware
-          .salvar({
-            placaVideo: consulta.placaVideo,
-            processador: consulta.processador,
-            memoria: consulta.memoria,
-            resolucao: consulta.resolucao,
-          })
-          .catch((erro) => {
-            console.error('[consulta] Não foi possível lembrar o hardware:', erro);
-          });
-      }
     } else {
       setErroApi(resposta.erro);
     }
@@ -204,6 +214,8 @@ export default function Index() {
     if (desabilitado) return;
     const consulta = construirConsultaFormulario();
     if (!consulta) return;
+
+    salvarHardwareSePreferido(consulta);
 
     Keyboard.dismiss();
     setErroApi('');
