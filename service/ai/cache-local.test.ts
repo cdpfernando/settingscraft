@@ -2,17 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { ArmazenamentoChaveValor } from '../armazenamento';
-import { criarChaveCache, criarRepositorioCacheLocal } from './cache-local';
-import type { Consulta } from './fonte';
+import { criarConsultaTeste } from '../testes/criar-consulta-teste';
+import { criarRepositorioCacheLocal } from './cache-local';
 import { CONTRATO_VERSAO, type Resultado } from './schema';
 
-const consulta: Consulta = {
+const consulta = criarConsultaTeste({
   jogo: 'Alan Wake 2',
   placaVideo: 'NVIDIA GeForce RTX 4070 Super',
   processador: 'AMD Ryzen 7 7800X3D',
   memoria: '32 GB',
   resolucao: '2560x1440 (2K)',
-};
+});
 
 const resultado: Resultado = {
   configuracoes: [{ nome: 'Qualidade geral', valor: 'Alto', justificativa: 'Mantém bom equilíbrio.' }],
@@ -51,54 +51,127 @@ class ArmazenamentoMemoria implements ArmazenamentoChaveValor {
   }
 }
 
-test('normaliza espaços e caixa ao criar a chave', () => {
-  const equivalente: Consulta = {
-    jogo: '  ALAN   WAKE 2 ',
+function unicaChave(armazenamento: ArmazenamentoMemoria): string {
+  assert.equal(armazenamento.dados.size, 1);
+  return [...armazenamento.dados.keys()][0];
+}
+
+test('mantém o namespace v2 e a identidade anterior sem expor helpers de chave', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
+  await criarRepositorioCacheLocal(armazenamento).salvar(consulta, resultado);
+
+  assert.equal(
+    unicaChave(armazenamento),
+    '@settingscraft/resultados:v2:["alan wake 2","nvidia geforce rtx 4070 super","amd ryzen 7 7800x3d","32 gb","2560x1440 (2k)"]',
+  );
+});
+
+test('persiste e busca uma recomendação por uma consulta equivalente', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
+  const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const equivalente = criarConsultaTeste({
+    jogo: ' alan  wake 2 ',
     placaVideo: ' nvidia geForce RTX 4070 SUPER ',
     processador: ' amd ryzen 7 7800x3d ',
     memoria: ' 32   gb ',
     resolucao: ' 2560X1440   (2k) ',
-  };
+  });
 
-  assert.equal(criarChaveCache(equivalente), criarChaveCache(consulta));
-});
-
-test('persiste e busca uma recomendação pela consulta normalizada', async () => {
-  const armazenamento = new ArmazenamentoMemoria();
-  const repositorio = criarRepositorioCacheLocal(armazenamento);
-  await repositorio.salvar(consulta, resultado);
-
-  assert.deepEqual(await repositorio.buscar({ ...consulta, jogo: ' alan  wake 2 ' }), resultado);
+  assert.deepEqual(await repositorio.buscar(equivalente), resultado);
   assert.equal(armazenamento.dados.size, 1);
 });
 
-test('histórico preserva o gerador e marca a fonte de entrega como salva', async () => {
+test('histórico recebe somente a consulta reconstruída e congelada', async () => {
   const repositorio = criarRepositorioCacheLocal(new ArmazenamentoMemoria());
   await repositorio.salvar(consulta, resultado);
 
-  assert.deepEqual(await repositorio.listar(), [{
+  const itens = await repositorio.listar();
+  assert.deepEqual(itens, [{
     consulta,
     resultado: { ...resultado, fonte: 'salvo' },
   }]);
+  assert.equal(Object.isFrozen(itens[0].consulta), true);
 });
 
-test('descarta registro local corrompido ao buscar', async () => {
+test('continua recuperando um registro válido persistido no contrato v2', async () => {
   const armazenamento = new ArmazenamentoMemoria();
-  const chave = criarChaveCache(consulta);
-  armazenamento.dados.set(chave, '{json inválido');
+  const chave = '@settingscraft/resultados:v2:["alan wake 2","nvidia geforce rtx 4070 super","amd ryzen 7 7800x3d","32 gb","2560x1440 (2k)"]';
+  armazenamento.dados.set(chave, JSON.stringify({
+    consulta: {
+      jogo: 'Alan Wake 2',
+      placaVideo: 'NVIDIA GeForce RTX 4070 Super',
+      processador: 'AMD Ryzen 7 7800X3D',
+      memoria: '32 GB',
+      resolucao: '2560x1440 (2K)',
+    },
+    resultado,
+  }));
+
+  assert.deepEqual(await criarRepositorioCacheLocal(armazenamento).buscar(consulta), resultado);
+  assert.deepEqual(armazenamento.removidas, []);
+});
+
+test('descarta JSON ilegível ao buscar', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
   const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const chave = unicaChave(armazenamento);
+  armazenamento.dados.set(chave, '{json inválido');
 
   assert.equal(await repositorio.buscar(consulta), null);
   assert.deepEqual(armazenamento.removidas, [chave]);
   assert.equal(armazenamento.dados.has(chave), false);
 });
 
-test('histórico ignora e remove registros fora do contrato', async () => {
+test('descarta valor vazio ao buscar', async () => {
   const armazenamento = new ArmazenamentoMemoria();
-  const chave = criarChaveCache(consulta);
-  armazenamento.dados.set(chave, JSON.stringify({ consulta, resultado: { versaoContrato: 1 } }));
   const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const chave = unicaChave(armazenamento);
+  armazenamento.dados.set(chave, '');
+
+  assert.equal(await repositorio.buscar(consulta), null);
+  assert.deepEqual(armazenamento.removidas, [chave]);
+  assert.equal(armazenamento.dados.has(chave), false);
+});
+
+test('descarta consulta persistida inválida ao buscar', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
+  const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const chave = unicaChave(armazenamento);
+  armazenamento.dados.set(chave, JSON.stringify({
+    consulta: { ...consulta, memoria: '24 GB' },
+    resultado,
+  }));
+
+  assert.equal(await repositorio.buscar(consulta), null);
+  assert.deepEqual(armazenamento.removidas, [chave]);
+});
+
+test('histórico ignora e remove recomendação fora do contrato', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
+  const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const chave = unicaChave(armazenamento);
+  armazenamento.dados.set(chave, JSON.stringify({
+    consulta,
+    resultado: { versaoContrato: 1 },
+  }));
 
   assert.deepEqual(await repositorio.listar(), []);
   assert.deepEqual(armazenamento.removidas, [chave]);
+});
+
+test('histórico ignora e remove valor vazio', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
+  const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const chave = unicaChave(armazenamento);
+  armazenamento.dados.set(chave, '');
+
+  assert.deepEqual(await repositorio.listar(), []);
+  assert.deepEqual(armazenamento.removidas, [chave]);
+  assert.equal(armazenamento.dados.has(chave), false);
 });

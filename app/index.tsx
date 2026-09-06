@@ -1,8 +1,6 @@
 import {
-  OPCOES_MEMORIA,
   PLACAS_VIDEO,
   PROCESSADORES,
-  RESOLUCOES,
 } from '@/assets/data/hardware';
 import { AutocompleteHardware } from '@/components/autocomplete-hardware';
 import { Botao } from '@/components/botao';
@@ -11,6 +9,15 @@ import { ResultadoCard } from '@/components/resultado-card';
 import { SeletorOpcoes } from '@/components/seletor-opcoes';
 import { recomendadorPadrao } from '@/service/ai/recomendador-padrao';
 import type { Resultado } from '@/service/ai/schema';
+import {
+  criarConsultaConfiguracoes,
+  OPCOES_MEMORIA,
+  RESOLUCOES,
+  type CampoConsultaConfiguracoes,
+  type ConsultaConfiguracoes,
+  type ErrosConsultaConfiguracoes,
+  type MotivoConsultaInvalida,
+} from '@/service/consulta-configuracoes';
 import {
   criarRepositorioHardwareLembrado,
   type HardwareLembrado,
@@ -34,9 +41,23 @@ import {
   View,
 } from 'react-native';
 
-const CAMPOS_OBRIGATORIOS = ['jogo', 'placaVideo', 'processador', 'memoria'] as const;
-type CampoObrigatorio = (typeof CAMPOS_OBRIGATORIOS)[number];
-type Erros = Partial<Record<CampoObrigatorio, string>>;
+type CampoEditavel = Exclude<CampoConsultaConfiguracoes, 'resolucao'>;
+type Erros = Partial<Record<CampoConsultaConfiguracoes, string>>;
+
+const MENSAGENS_VALIDACAO: Record<MotivoConsultaInvalida, string> = {
+  obrigatorio: 'Campo obrigatório',
+  tipo_invalido: 'Valor inválido',
+  opcao_nao_suportada: 'Opção não suportada',
+};
+
+function traduzirErros(erros: ErrosConsultaConfiguracoes): Erros {
+  return Object.fromEntries(
+    Object.entries(erros).map(([campo, motivo]) => [
+      campo,
+      MENSAGENS_VALIDACAO[motivo as MotivoConsultaInvalida],
+    ]),
+  );
+}
 
 const repositorioHardware = criarRepositorioHardwareLembrado();
 
@@ -51,14 +72,12 @@ export default function Index() {
   const [erros, setErros] = useState<Erros>({});
   const [erroApi, setErroApi] = useState('');
   const [resultado, setResultado] = useState<Resultado | null>(null);
-  const [resolucaoConsultada, setResolucaoConsultada] = useState('');
+  const [consultaExibida, setConsultaExibida] = useState<ConsultaConfiguracoes | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGerandoNovamente, setIsGerandoNovamente] = useState(false);
   const lembrarHardwareRef = useRef(false);
 
   const desabilitado = isLoading || isGerandoNovamente;
-
-  const valores: Record<CampoObrigatorio, string> = { jogo, placaVideo, processador, memoria };
 
   const definirLembrarHardware = (ligado: boolean) => {
     lembrarHardwareRef.current = ligado;
@@ -112,7 +131,7 @@ export default function Index() {
     });
   };
 
-  const editarCampo = (campo: CampoObrigatorio, valor: string) => {
+  const editarCampo = (campo: CampoEditavel, valor: string) => {
     if (campo === 'jogo') setJogo(valor);
     else if (campo === 'placaVideo') setPlacaVideo(valor);
     else if (campo === 'processador') setProcessador(valor);
@@ -123,27 +142,15 @@ export default function Index() {
     }
   };
 
-  const validarFormulario = () => {
-    const novosErros: Erros = {};
-    for (const campo of CAMPOS_OBRIGATORIOS) {
-      if (!valores[campo].trim()) {
-        novosErros[campo] = 'Campo obrigatório';
-      }
+  const editarResolucao = (valor: string) => {
+    setResolucao(valor);
+    if (erros.resolucao) {
+      setErros((atual) => ({ ...atual, resolucao: undefined }));
     }
-    setErros(novosErros);
-    return Object.keys(novosErros).length === 0;
   };
 
-  const gerarConfiguracoes = async () => {
-    if (desabilitado) return;
-    if (!validarFormulario()) return;
-
-    Keyboard.dismiss();
-    setResultado(null);
-    setErroApi('');
-    setIsLoading(true);
-
-    const resposta = await recomendadorPadrao.consultarConfiguracoes({
+  const construirConsultaFormulario = (): ConsultaConfiguracoes | null => {
+    const criacao = criarConsultaConfiguracoes({
       jogo,
       placaVideo,
       processador,
@@ -151,12 +158,38 @@ export default function Index() {
       resolucao,
     });
 
+    if (!criacao.ok) {
+      setErros(traduzirErros(criacao.erros));
+      return null;
+    }
+
+    setErros({});
+    return criacao.consulta;
+  };
+
+  const gerarConfiguracoes = async () => {
+    if (desabilitado) return;
+    const consulta = construirConsultaFormulario();
+    if (!consulta) return;
+
+    Keyboard.dismiss();
+    setResultado(null);
+    setErroApi('');
+    setIsLoading(true);
+
+    const resposta = await recomendadorPadrao.consultarConfiguracoes(consulta);
+
     if (resposta.ok) {
       setResultado(resposta.resultado);
-      setResolucaoConsultada(resolucao);
+      setConsultaExibida(consulta);
       if (lembrarHardwareRef.current) {
         void repositorioHardware
-          .salvar({ placaVideo, processador, memoria, resolucao })
+          .salvar({
+            placaVideo: consulta.placaVideo,
+            processador: consulta.processador,
+            memoria: consulta.memoria,
+            resolucao: consulta.resolucao,
+          })
           .catch((erro) => {
             console.error('[consulta] Não foi possível lembrar o hardware:', erro);
           });
@@ -169,26 +202,21 @@ export default function Index() {
 
   const gerarNovamente = async () => {
     if (desabilitado) return;
-    if (!validarFormulario()) return;
+    const consulta = construirConsultaFormulario();
+    if (!consulta) return;
 
     Keyboard.dismiss();
     setErroApi('');
     setIsGerandoNovamente(true);
 
     const resposta = await recomendadorPadrao.consultarConfiguracoes(
-      {
-        jogo,
-        placaVideo,
-        processador,
-        memoria,
-        resolucao,
-      },
+      consulta,
       { forcarNovaRecomendacao: true },
     );
 
     if (resposta.ok) {
       setResultado(resposta.resultado);
-      setResolucaoConsultada(resolucao);
+      setConsultaExibida(consulta);
     } else {
       setErroApi(resposta.erro);
     }
@@ -264,7 +292,8 @@ export default function Index() {
         label="Resolução"
         opcoes={RESOLUCOES}
         valor={resolucao}
-        onChange={setResolucao}
+        erro={erros.resolucao}
+        onChange={editarResolucao}
       />
 
       <LembrarHardware ligado={lembrarHardware} onChange={aoAlternarLembrar} />
@@ -283,10 +312,10 @@ export default function Index() {
         </View>
       )}
 
-      {!!resultado && (
+      {!!resultado && !!consultaExibida && (
         <ResultadoCard
-          jogo={jogo}
-          resolucaoConsultada={resolucaoConsultada}
+          jogo={consultaExibida.jogo}
+          resolucaoConsultada={consultaExibida.resolucao}
           resultado={resultado}
           aoGerarNovamente={gerarNovamente}
           gerandoNovamente={isGerandoNovamente}

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import type { Consulta, ProvedorEvidencia, TransporteHttp } from './fonte';
+import type { ConsultaConfiguracoes } from '../consulta-configuracoes';
+import type { ProvedorEvidencia, TransporteHttp } from './fonte';
 import {
   EvidenciaDesempenhoSchema,
   UrlAtribuicaoFpsHqSchema,
@@ -168,7 +169,7 @@ function selecionarReferencia(resultados: readonly RespostaFps[]): RespostaFps |
 
 async function enriquecer(
   transporte: TransporteHttp,
-  consulta: Consulta,
+  consulta: ConsultaConfiguracoes,
   resolucao: ResolucaoFpsHq,
   sinal: AbortSignal,
 ): Promise<EvidenciaDesempenho | null> {

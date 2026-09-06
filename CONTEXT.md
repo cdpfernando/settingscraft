@@ -5,7 +5,7 @@ Este contexto descreve como o SettingsCraft representa o pedido do jogador e a c
 ## Linguagem
 
 **Consulta de configurações**:
-Pedido que reúne jogo, hardware e resolução informados pelo jogador.
+Pedido válido que reúne jogo, placa de vídeo, processador, memória e resolução informados pelo jogador. Jogo, placa de vídeo e processador podem ser descritos livremente e conservam sua forma legível; memória e resolução são representadas pelas opções suportadas. Diferenças apenas de caixa ou espaços não formam uma nova consulta.
 _Evitar_: requisição, prompt
 
 **Recomendação**:

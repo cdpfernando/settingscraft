@@ -1,4 +1,5 @@
-import { ErroFonteConfiguracao, ErroFonteLimite, type Consulta, type Gerador, type ProvedorEvidencia } from './fonte';
+import type { ConsultaConfiguracoes } from '../consulta-configuracoes';
+import { ErroFonteConfiguracao, ErroFonteLimite, type Gerador, type ProvedorEvidencia } from './fonte';
 import {
   CONTRATO_VERSAO,
   ResultadoSchema,
@@ -17,8 +18,8 @@ export interface OpcoesConsulta {
 }
 
 export interface CacheRecomendacao {
-  buscar(consulta: Consulta): Promise<Resultado | null>;
-  salvar(consulta: Consulta, resultado: Resultado): Promise<void>;
+  buscar(consulta: ConsultaConfiguracoes): Promise<Resultado | null>;
+  salvar(consulta: ConsultaConfiguracoes, resultado: Resultado): Promise<void>;
 }
 
 export interface AdaptadoresRecomendador {
@@ -31,7 +32,7 @@ export interface AdaptadoresRecomendador {
 
 export interface Recomendador {
   consultarConfiguracoes(
-    consulta: Consulta,
+    consulta: ConsultaConfiguracoes,
     opcoes?: OpcoesConsulta,
   ): Promise<ConsultaResultado>;
 }

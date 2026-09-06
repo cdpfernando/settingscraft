@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Consulta } from './fonte';
+import type { ConsultaConfiguracoes } from '../consulta-configuracoes';
+import { criarConsultaTeste } from '../testes/criar-consulta-teste';
 import { criarProvedorEvidenciaFpsHq } from './provedor-fpshq';
 
 const PRESETS = ['low', 'medium', 'high', 'ultra'] as const;
@@ -23,13 +24,7 @@ interface OpcoesTransporte {
   respostaBusca?: (tipo: TipoBusca) => Response | undefined;
 }
 
-const consulta: Consulta = {
-  jogo: 'Cyberpunk 2077',
-  placaVideo: 'NVIDIA GeForce RTX 4060',
-  processador: 'AMD Ryzen 5 5600',
-  memoria: '16 GB',
-  resolucao: 'Full HD',
-};
+const consulta = criarConsultaTeste();
 
 function responderJson(corpo: unknown): Response {
   return new Response(JSON.stringify(corpo), {
@@ -99,7 +94,7 @@ function criarTransporte(opcoes: OpcoesTransporte = {}) {
 
 async function buscarEvidencia(
   opcoes: OpcoesTransporte = {},
-  consultaRecebida: Consulta = consulta,
+  consultaRecebida: ConsultaConfiguracoes = consulta,
 ) {
   const falso = criarTransporte(opcoes);
   const evidencia = await criarProvedorEvidenciaFpsHq({
@@ -138,7 +133,10 @@ for (const [resolucaoInformada, resolucaoFpsHq] of [
   ['3840x2160 (4K)', '4K'],
 ] as const) {
   test(`mapeia ${resolucaoInformada} para ${resolucaoFpsHq}`, async () => {
-    const { evidencia, urls } = await buscarEvidencia({}, { ...consulta, resolucao: resolucaoInformada });
+    const { evidencia, urls } = await buscarEvidencia(
+      {},
+      criarConsultaTeste({ resolucao: resolucaoInformada }),
+    );
 
     assert.equal(evidencia?.resolucao, resolucaoFpsHq);
     assert.ok(
@@ -155,7 +153,7 @@ test('resolução não suportada devolve ausência sem chamar o transporte', asy
       chamadas += 1;
       throw new Error('O transporte não deveria ser chamado.');
     },
-  }).buscar({ ...consulta, resolucao: '1280x720 (HD)' });
+  }).buscar(criarConsultaTeste({ resolucao: '1280x720 (HD)' }));
 
   assert.equal(evidencia, null);
   assert.equal(chamadas, 0);

@@ -102,12 +102,3 @@ export const PROCESSADORES = [
   'Intel Core i9-13900K',
   'Intel Core i9-14900K',
 ] as const;
-
-export const OPCOES_MEMORIA = ['8 GB', '16 GB', '32 GB', '64 GB', '128 GB'] as const;
-
-export const RESOLUCOES = [
-  '1280x720 (HD)',
-  '1920x1080 (Full HD)',
-  '2560x1440 (2K)',
-  '3840x2160 (4K)',
-] as const;

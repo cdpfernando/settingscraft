@@ -1,4 +1,4 @@
-import type { Consulta } from './fonte';
+import type { ConsultaConfiguracoes } from '../consulta-configuracoes';
 import { formatarPresetFpsHq } from './formatacao';
 import type { EvidenciaDesempenho } from './schema';
 
@@ -35,7 +35,10 @@ mas não como garantia para a combinação personalizada de opções.
 `;
 }
 
-export function criarPrompt(consulta: Consulta, evidencia?: EvidenciaDesempenho): string {
+export function criarPrompt(
+  consulta: ConsultaConfiguracoes,
+  evidencia?: EvidenciaDesempenho,
+): string {
   return `
 Jogo: ${consulta.jogo}
 Placa de vídeo: ${consulta.placaVideo}

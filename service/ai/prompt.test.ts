@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Consulta } from './fonte';
+import { criarConsultaTeste } from '../testes/criar-consulta-teste';
 import { criarPrompt } from './prompt';
 import type { EvidenciaDesempenho } from './schema';
 
-const consulta: Consulta = {
-  jogo: 'Cyberpunk 2077', placaVideo: 'RTX 4060', processador: 'Ryzen 5 5600', memoria: '16 GB', resolucao: 'Full HD',
-};
+const consulta = criarConsultaTeste();
 
 const evidencia: EvidenciaDesempenho = {
   fonte: 'fpshq', tipo: 'benchmark', correspondencia: 'completa', urlAtribuicao: 'https://fpshq.com/games/cyberpunk-2077/', consultadoEm: '2026-09-03T12:00:00.000Z',

@@ -1,20 +1,13 @@
+import type { ConsultaConfiguracoes } from '../consulta-configuracoes';
 import type { EvidenciaDesempenho, GeradoPor, RespostaIa } from './schema';
-
-export interface Consulta {
-  jogo: string;
-  placaVideo: string;
-  processador: string;
-  memoria: string;
-  resolucao: string;
-}
 
 export interface ProvedorEvidencia {
   nome: string;
-  buscar(consulta: Consulta): Promise<EvidenciaDesempenho | null>;
+  buscar(consulta: ConsultaConfiguracoes): Promise<EvidenciaDesempenho | null>;
 }
 
 export interface ContextoGeracao {
-  consulta: Consulta;
+  consulta: ConsultaConfiguracoes;
   evidencia?: EvidenciaDesempenho;
 }
 

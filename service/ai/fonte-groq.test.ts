@@ -1,16 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ErroFonteConfiguracao, ErroFonteLimite, type Consulta } from './fonte';
+import { criarConsultaTeste } from '../testes/criar-consulta-teste';
+import { ErroFonteConfiguracao, ErroFonteLimite } from './fonte';
 import { criarFonteGroq } from './fonte-groq';
 
-const consulta: Consulta = {
-  jogo: 'Cyberpunk 2077',
-  placaVideo: 'RTX 4060',
-  processador: 'Ryzen 5 5600',
-  memoria: '16 GB',
-  resolucao: 'Full HD',
-};
+const consulta = criarConsultaTeste();
 
 const respostaIa = {
   configuracoes: [{ nome: 'Qualidade geral', valor: 'Alto', justificativa: 'Mantém a meta.' }],
