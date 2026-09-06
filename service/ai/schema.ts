@@ -102,3 +102,7 @@ export const ResultadoSchema = RespostaIaSchema.extend({
 });
 
 export type Resultado = z.infer<typeof ResultadoSchema>;
+
+export type ResultadoSalvo = Omit<Resultado, 'fonte'> & {
+  fonte: 'salvo';
+};

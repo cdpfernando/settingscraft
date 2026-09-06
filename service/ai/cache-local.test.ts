@@ -20,7 +20,21 @@ const resultado: Resultado = {
   fonte: 'gemini',
   geradoPor: 'gemini',
   confiancaFps: 'baixa',
-  evidenciaDesempenho: null,
+  evidenciaDesempenho: {
+    fonte: 'fpshq',
+    tipo: 'predicao',
+    correspondencia: 'parcial',
+    urlAtribuicao: 'https://fpshq.com/games/alan-wake-2/',
+    consultadoEm: '2026-09-05T09:59:00.000Z',
+    jogo: { slug: 'alan-wake-2', nome: 'Alan Wake 2' },
+    placaVideo: { slug: 'rtx-4070-super', nome: 'GeForce RTX 4070 Super' },
+    processador: null,
+    resolucao: '1440p',
+    presetReferencia: 'high',
+    fpsMedio: 66,
+    fpsMinimo: 58,
+    fpsMaximo: 74,
+  },
   geradoEm: '2026-09-05T10:00:00.000Z',
   versaoContrato: CONTRATO_VERSAO,
 };
@@ -66,7 +80,7 @@ test('mantém o namespace v2 e a identidade anterior sem expor helpers de chave'
   );
 });
 
-test('persiste e busca uma recomendação por uma consulta equivalente', async () => {
+test('persiste e busca uma recomendação salva por uma consulta equivalente', async () => {
   const armazenamento = new ArmazenamentoMemoria();
   const repositorio = criarRepositorioCacheLocal(armazenamento);
   await repositorio.salvar(consulta, resultado);
@@ -78,7 +92,10 @@ test('persiste e busca uma recomendação por uma consulta equivalente', async (
     resolucao: ' 2560X1440   (2k) ',
   });
 
-  assert.deepEqual(await repositorio.buscar(equivalente), resultado);
+  assert.deepEqual(await repositorio.buscar(equivalente), {
+    ...resultado,
+    fonte: 'salvo',
+  });
   assert.equal(armazenamento.dados.size, 1);
 });
 
@@ -92,6 +109,24 @@ test('histórico recebe somente a consulta reconstruída e congelada', async () 
     resultado: { ...resultado, fonte: 'salvo' },
   }]);
   assert.equal(Object.isFrozen(itens[0].consulta), true);
+});
+
+test('histórico marca todas as recomendações como salvas e preserva seus geradores', async () => {
+  const repositorio = criarRepositorioCacheLocal(new ArmazenamentoMemoria());
+  const outraConsulta = criarConsultaTeste({ jogo: 'Cyberpunk 2077' });
+  await repositorio.salvar(consulta, resultado);
+  await repositorio.salvar(outraConsulta, {
+    ...resultado,
+    fonte: 'groq',
+    geradoPor: 'groq',
+    geradoEm: '2026-09-05T11:00:00.000Z',
+  });
+
+  const itens = await repositorio.listar();
+  assert.equal(itens.length, 2);
+  assert.equal(itens.every((item) => item.resultado.fonte === 'salvo'), true);
+  assert.deepEqual(itens.map((item) => item.resultado.geradoPor), ['groq', 'gemini']);
+  assert.deepEqual(itens[1].resultado.evidenciaDesempenho, resultado.evidenciaDesempenho);
 });
 
 test('continua recuperando um registro válido persistido no contrato v2', async () => {
@@ -108,8 +143,26 @@ test('continua recuperando um registro válido persistido no contrato v2', async
     resultado,
   }));
 
-  assert.deepEqual(await criarRepositorioCacheLocal(armazenamento).buscar(consulta), resultado);
+  assert.deepEqual(await criarRepositorioCacheLocal(armazenamento).buscar(consulta), {
+    ...resultado,
+    fonte: 'salvo',
+  });
   assert.deepEqual(armazenamento.removidas, []);
+});
+
+test('descarta fonte persistida inválida antes de marcar a recomendação como salva', async () => {
+  const armazenamento = new ArmazenamentoMemoria();
+  const repositorio = criarRepositorioCacheLocal(armazenamento);
+  await repositorio.salvar(consulta, resultado);
+  const chave = unicaChave(armazenamento);
+  armazenamento.dados.set(chave, JSON.stringify({
+    consulta,
+    resultado: { ...resultado, fonte: 'desconhecida' },
+  }));
+
+  assert.equal(await repositorio.buscar(consulta), null);
+  assert.deepEqual(armazenamento.removidas, [chave]);
+  assert.equal(armazenamento.dados.has(chave), false);
 });
 
 test('descarta JSON ilegível ao buscar', async () => {

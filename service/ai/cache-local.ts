@@ -6,7 +6,12 @@ import {
   identificarConsultaConfiguracoes,
   type ConsultaConfiguracoes,
 } from '../consulta-configuracoes';
-import { CONTRATO_VERSAO, ResultadoSchema, type Resultado } from './schema';
+import {
+  CONTRATO_VERSAO,
+  ResultadoSchema,
+  type Resultado,
+  type ResultadoSalvo,
+} from './schema';
 
 export type { ArmazenamentoChaveValor } from '../armazenamento';
 
@@ -14,11 +19,11 @@ const PREFIXO_CHAVE = '@settingscraft/resultados';
 
 export interface ItemHistorico {
   consulta: ConsultaConfiguracoes;
-  resultado: Resultado;
+  resultado: ResultadoSalvo;
 }
 
 export interface RepositorioCacheLocal {
-  buscar(consulta: ConsultaConfiguracoes): Promise<Resultado | null>;
+  buscar(consulta: ConsultaConfiguracoes): Promise<ResultadoSalvo | null>;
   salvar(consulta: ConsultaConfiguracoes, resultado: Resultado): Promise<void>;
   listar(): Promise<ItemHistorico[]>;
 }
@@ -45,7 +50,10 @@ async function lerRegistro(
       const resultado = ResultadoSchema.safeParse(registro.resultado);
 
       if (consulta.ok && resultado.success) {
-        return { consulta: consulta.consulta, resultado: resultado.data };
+        return {
+          consulta: consulta.consulta,
+          resultado: { ...resultado.data, fonte: 'salvo' },
+        };
       }
     }
   } catch {
@@ -84,10 +92,7 @@ export function criarRepositorioCacheLocal(
         if (valor === null) continue;
         const registro = await lerRegistro(armazenamento, chave, valor);
         if (registro) {
-          itens.push({
-            ...registro,
-            resultado: { ...registro.resultado, fonte: 'salvo' },
-          });
+          itens.push(registro);
         }
       }
 

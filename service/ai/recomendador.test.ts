@@ -15,6 +15,7 @@ import {
   type GeradoPor,
   type RespostaIa,
   type Resultado,
+  type ResultadoSalvo,
 } from './schema';
 
 const consulta = criarConsultaTeste();
@@ -42,10 +43,10 @@ const evidencia: EvidenciaDesempenho = {
   fpsMaximo: 79,
 };
 
-function resultadoArmazenado(geradoPor: GeradoPor = 'gemini'): Resultado {
+function resultadoSalvo(geradoPor: GeradoPor = 'gemini'): ResultadoSalvo {
   return {
     ...respostaIa,
-    fonte: geradoPor,
+    fonte: 'salvo',
     geradoPor,
     confiancaFps: 'baixa',
     evidenciaDesempenho: null,
@@ -55,7 +56,7 @@ function resultadoArmazenado(geradoPor: GeradoPor = 'gemini'): Resultado {
 }
 
 function criarCache(
-  resultadoSalvo: Resultado | null,
+  resultadoEncontrado: ResultadoSalvo | null,
   chamadas: string[],
   salvos: Resultado[] = [],
   falharAoSalvar = false,
@@ -63,7 +64,7 @@ function criarCache(
   return {
     async buscar() {
       chamadas.push('cache-local');
-      return resultadoSalvo;
+      return resultadoEncontrado;
     },
     async salvar(_consulta, resultado) {
       chamadas.push('salvar');
@@ -90,7 +91,7 @@ async function semErrosNoConsole<T>(acao: () => Promise<T>): Promise<T> {
 
 test('cache local encerra a consulta, marca a entrega como salva e preserva o gerador', async () => {
   const chamadas: string[] = [];
-  const armazenado = resultadoArmazenado('gemini');
+  const armazenado = resultadoSalvo('gemini');
   const resposta = await criarRecomendador({
     cacheLocal: criarCache(armazenado, chamadas),
     fpsHq: { nome: 'fpshq', async buscar() { assert.fail('FPSHQ não deve rodar.'); } },
@@ -98,7 +99,7 @@ test('cache local encerra a consulta, marca a entrega como salva e preserva o ge
     groq: { nome: 'groq', async gerar() { assert.fail('Groq não deve rodar.'); } },
   }).consultarConfiguracoes(consulta);
 
-  assert.deepEqual(obterResultado(resposta), { ...armazenado, fonte: 'salvo' });
+  assert.strictEqual(obterResultado(resposta), armazenado);
   assert.deepEqual(chamadas, ['cache-local']);
 });
 
@@ -144,7 +145,7 @@ test('nova recomendação pula só a leitura do cache e persiste o resultado fin
   const chamadas: string[] = [];
   const salvos: Resultado[] = [];
   const resposta = await criarRecomendador({
-    cacheLocal: criarCache(resultadoArmazenado(), chamadas, salvos),
+    cacheLocal: criarCache(resultadoSalvo(), chamadas, salvos),
     gemini: { nome: 'gemini', async gerar() { chamadas.push('gemini'); return respostaIa; } },
   }).consultarConfiguracoes(consulta, { forcarNovaRecomendacao: true });
 

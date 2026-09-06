@@ -7,6 +7,7 @@ import {
   type GeradoPor,
   type RespostaIa,
   type Resultado,
+  type ResultadoSalvo,
 } from './schema';
 
 export type ConsultaResultado =
@@ -18,7 +19,7 @@ export interface OpcoesConsulta {
 }
 
 export interface CacheRecomendacao {
-  buscar(consulta: ConsultaConfiguracoes): Promise<Resultado | null>;
+  buscar(consulta: ConsultaConfiguracoes): Promise<ResultadoSalvo | null>;
   salvar(consulta: ConsultaConfiguracoes, resultado: Resultado): Promise<void>;
 }
 
@@ -66,15 +67,6 @@ function finalizarRecomendacao(
   return resultado.data;
 }
 
-function prepararResultadoSalvo(resultado: Resultado): Resultado | null {
-  const validado = ResultadoSchema.safeParse({ ...resultado, fonte: 'salvo' });
-  if (!validado.success) {
-    console.error('[recomendador] Resultado do cache não corresponde ao contrato:', validado.error.issues);
-    return null;
-  }
-  return validado.data;
-}
-
 export function criarRecomendador(adaptadores: AdaptadoresRecomendador): Recomendador {
   const modoExemplo = adaptadores.exemplo !== undefined;
   const geradores = (modoExemplo
@@ -90,10 +82,7 @@ export function criarRecomendador(adaptadores: AdaptadoresRecomendador): Recomen
       if (!opcoes.forcarNovaRecomendacao) {
         try {
           const resultadoCache = await adaptadores.cacheLocal.buscar(consulta);
-          if (resultadoCache) {
-            const resultadoSalvo = prepararResultadoSalvo(resultadoCache);
-            if (resultadoSalvo) return { ok: true, resultado: resultadoSalvo };
-          }
+          if (resultadoCache) return { ok: true, resultado: resultadoCache };
         } catch (erro) {
           if (erro instanceof ErroFonteConfiguracao) {
             console.error(`[recomendador] ${erro.message}`);
