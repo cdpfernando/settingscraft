@@ -127,6 +127,120 @@ test('corresponde jogo, GPU e CPU por nome equivalente sem exigir o fabricante',
   });
 });
 
+test('o fabricante sai do termo de hardware e o título do jogo vai íntegro', async () => {
+  // Título sintético: nenhum jogo do catálogo começa por fabricante, mas cortar a
+  // primeira palavra de um título é buscar outro jogo — a regra vale só no hardware.
+  const { urls } = await buscarEvidencia(
+    {},
+    criarConsultaTeste({ jogo: 'Intel Extreme Racing' }),
+  );
+
+  assert.deepEqual(
+    urls.filter((url) => url.pathname.endsWith('/search'))
+      .map((url) => [url.searchParams.get('type'), url.searchParams.get('q')]),
+    [
+      ['game', 'Intel Extreme Racing'],
+      ['gpu', 'GeForce RTX 4060'],
+      ['cpu', 'Ryzen 5 5600'],
+    ],
+  );
+});
+
+test('sufixo depois de separador não afrouxa a correspondência de hardware', async () => {
+  // As regras de título expandido valem só para jogo. Numa GPU, o sufixo é
+  // fabricante de placa ou variante de encapsulamento — outro item, não outra
+  // edição do mesmo.
+  const { evidencia, urls } = await buscarEvidencia(
+    {
+      respostaBusca: (tipo) => tipo === 'gpu'
+        ? responderJson({
+            ok: true,
+            results: [
+              { type: 'gpu', slug: 'rtx-4060-fe', name: 'GeForce RTX 4060: Founders Edition' },
+            ],
+          })
+        : undefined,
+    },
+    // Sem o fabricante no termo informado: com ele, o `startsWith` falharia
+    // sozinho e o teste passaria mesmo sem o recorte por tipo.
+    criarConsultaTeste({ placaVideo: 'GeForce RTX 4060' }),
+  );
+
+  assert.equal(evidencia, null);
+  assert.equal(urls.filter((url) => url.pathname.endsWith('/fps')).length, 0);
+});
+
+for (const [informado, nomeCatalogo, casa] of [
+  ['Cyberpunk 2077', 'Cyberpunk 2077: Phantom Liberty', true],
+  ['Cyberpunk 2077', 'Cyberpunk 2077 - Phantom Liberty', true],
+  ['Cyberpunk 2077', 'Cyberpunk 2077 – Phantom Liberty', true],
+  ['Cyberpunk 2077', 'Cyberpunk 2077 — Phantom Liberty', true],
+  // O separador precisa de espaço depois. Colado, ele faz parte do título de
+  // outro jogo: "Counter-Strike 2" não é uma edição de "Counter".
+  ['Counter', 'Counter-Strike 2', false],
+  // Espaço sozinho não separa edição de sequência.
+  ['God of War', 'God of War Ragnarok', false],
+  ['Elden Ring', 'Elden Ring Nightreign', false],
+] as const) {
+  test(`"${informado}" ${casa ? 'casa' : 'não casa'} com "${nomeCatalogo}"`, async () => {
+    const { urls } = await buscarEvidencia(
+      {
+        respostaBusca: (tipo) => tipo === 'game'
+          ? responderJson({
+              ok: true,
+              // Slug que não corresponde ao termo informado: só a regra do
+              // título expandido pode resolver este caso.
+              results: [{ type: 'game', slug: 'jogo-do-catalogo', name: nomeCatalogo }],
+            })
+          : undefined,
+      },
+      criarConsultaTeste({ jogo: informado }),
+    );
+
+    assert.equal(urls.filter((url) => url.pathname.endsWith('/fps')).length, casa ? 4 : 0);
+  });
+}
+
+/**
+ * A regra do slug isolada. Os slugs da coluna do meio são os que a API devolveu
+ * em 2026-09-07; o `name` é de propósito diferente do termo informado, para que
+ * nem a igualdade nem o título expandido alcancem o candidato e só a regra do
+ * slug possa decidir. O pareamento é a bancada, não um cenário de campo: contra
+ * a API real nenhum destes títulos chega até aqui, porque o `name` do catálogo é
+ * igual ao que o jogador digitou e a igualdade resolve antes.
+ */
+for (const [informado, slugCatalogo, casa] of [
+  // Apóstrofo descartado — a forma que `paraSlug` não produzia.
+  ["Baldur's Gate 3", 'baldurs-gate-3', true],
+  ["No Man's Sky", 'no-mans-sky', true],
+  ["Sid Meier's Civilization VI", 'sid-meiers-civilization-vi', true],
+  // Apóstrofo virando traço — a forma que já funcionava, e continua.
+  ["Tom Clancy's Splinter Cell", 'tom-clancy-s-splinter-cell', true],
+  ["Baldur's Gate: Dark Alliance", 'baldur-s-gate-dark-alliance', true],
+  // Sem apóstrofo no termo há uma forma só, e ela não alcança a outra: não dá
+  // para adivinhar onde o apóstrofo estava.
+  ['Baldurs Gate 3', 'baldur-s-gate-3', false],
+  ['Tom Clancys Splinter Cell', 'tom-clancy-s-splinter-cell', false],
+] as const) {
+  test(`"${informado}" ${casa ? 'casa' : 'não casa'} com o slug "${slugCatalogo}"`, async () => {
+    const { urls } = await buscarEvidencia(
+      {
+        respostaBusca: (tipo) => tipo === 'game'
+          ? responderJson({
+              ok: true,
+              // `name` que não bate por igualdade nem por sufixo de edição: só a
+              // regra do slug pode resolver este caso.
+              results: [{ type: 'game', slug: slugCatalogo, name: 'Outro título qualquer' }],
+            })
+          : undefined,
+      },
+      criarConsultaTeste({ jogo: informado }),
+    );
+
+    assert.equal(urls.filter((url) => url.pathname.endsWith('/fps')).length, casa ? 4 : 0);
+  });
+}
+
 for (const [resolucaoInformada, resolucaoFpsHq] of [
   ['1920x1080 (Full HD)', '1080p'],
   ['2560x1440 (2K)', '1440p'],

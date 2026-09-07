@@ -12,6 +12,7 @@ const BASE_URL = 'https://fpshq.com/api/v1';
 const META_FPS_MINIMO = 60;
 const TEMPO_LIMITE_PADRAO_MS = 3_000;
 const PRESETS = ['low', 'medium', 'high', 'ultra'] as const;
+const LIMITE_BUSCA = 10;
 
 const ItemBuscaSchema = z.object({
   type: z.enum(['game', 'gpu', 'cpu']),
@@ -63,14 +64,101 @@ function normalizarNome(valor: string): string {
   return valor.normalize('NFKC').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
 }
 
-function removerFabricante(valor: string): string {
-  return valor.replace(/^(amd|intel|nvidia)\s+/, '');
+/**
+ * Única autoridade sobre o fabricante à frente do modelo. O `/search` do FPSHQ
+ * casa `q` como substring do `name`, e nenhum `name` do catálogo traz o
+ * fabricante: "NVIDIA GeForce RTX 4060" volta vazio, "GeForce RTX 4060" volta
+ * cinco resultados. Termo de busca e comparação passam por aqui — se divergirem,
+ * a evidência some sem erro.
+ */
+function termoDeBusca(tipo: TipoBusca, nome: string): string {
+  // No título do jogo o começo é o título, não ruído de fabricante.
+  return tipo === 'game' ? nome : nome.replace(/^(amd|intel|nvidia)\s+/i, '');
 }
 
-function nomesEquivalentes(informado: string, encontrado: string): boolean {
+function nomesEquivalentes(tipo: TipoBusca, informado: string, encontrado: string): boolean {
+  // Os dois lados passam pela mesma remoção: o jogador pode escrever o fabricante
+  // ou não, e o catálogo pode registrar de qualquer das formas.
+  return normalizarNome(termoDeBusca(tipo, informado))
+    === normalizarNome(termoDeBusca(tipo, encontrado));
+}
+
+/**
+ * Formas de slug do FPSHQ para um título. Desempata quando o `name` canônico
+ * traz a expansão mas o slug guardou o título que o jogador digitou —
+ * `cyberpunk-2077` responde por "Cyberpunk 2077: Phantom Liberty".
+ *
+ * São duas porque o próprio FPSHQ é inconsistente com o apóstrofo, conferido na
+ * API em 2026-09-07: `baldurs-gate-3` e `no-mans-sky` descartam o apóstrofo,
+ * `baldur-s-gate-dark-alliance` e `tom-clancy-s-splinter-cell` o trocam por
+ * traço — e as duas formas convivem na mesma página de "Baldur's Gate". Nada no
+ * `name` diz qual delas o catálogo escolheu, então a regra aceita as duas.
+ * Continua sendo igualdade de slug, não aproximação: nenhum item do catálogo
+ * responde pelas duas formas, então aceitar as duas não inventa empate.
+ */
+function formasDeSlug(valor: string): readonly string[] {
+  const semAcento = normalizarNome(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const emSlug = (texto: string) => texto
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const comTraco = emSlug(semAcento);
+  const semApostrofo = emSlug(semAcento.replace(/['\u2019\u02bc]/g, ''));
+
+  return comTraco === semApostrofo ? [comTraco] : [comTraco, semApostrofo];
+}
+
+/**
+ * O FPSHQ registra vários jogos pelo título base seguido da edição ou da
+ * expansão. O sufixo só conta depois de um separador: "God of War Ragnarok" é
+ * outro jogo, não uma edição de "God of War".
+ */
+function ehTituloExpandido(informado: string, encontrado: string): boolean {
   const alvo = normalizarNome(informado);
   const candidato = normalizarNome(encontrado);
-  return alvo === candidato || removerFabricante(alvo) === removerFabricante(candidato);
+  return candidato.startsWith(alvo) && /^\s*[:–—-]\s/.test(candidato.slice(alvo.length));
+}
+
+/**
+ * Regras de correspondência em ordem de precedência. A primeira que alcança
+ * algum candidato decide: um único candidato resolve, mais de um é ambiguidade
+ * e não resolve nada.
+ *
+ * As regras afrouxadas têm duas condições. Valem só para o jogo — no hardware o
+ * sufixo é fabricante de placa ("ASUS ROG Strix Radeon RX 6600") ou variante de
+ * encapsulamento ("Core i5-12400F Box"), que não são edições do mesmo item. E
+ * valem só quando a página não veio cheia: `/search` devolve uma página, não o
+ * catálogo, e ali candidato único não significa único no catálogo. "Serious Sam"
+ * traz uma edição entre os dez primeiros e três no catálogo inteiro — afrouxar
+ * sobre a página seria escolher uma delas no escuro.
+ */
+function escolherCandidato(
+  tipo: TipoBusca,
+  nome: string,
+  resultados: readonly ItemBusca[],
+): ItemBusca | null {
+  const candidatos = resultados.filter((item) => item.type === tipo);
+  const alvo = termoDeBusca(tipo, nome);
+  const regras: Array<(item: ItemBusca) => boolean> = [
+    (item) => nomesEquivalentes(tipo, nome, item.name),
+  ];
+  if (tipo === 'game' && resultados.length < LIMITE_BUSCA) {
+    const slugsAlvo = formasDeSlug(alvo);
+    regras.push(
+      (item) => slugsAlvo.includes(item.slug),
+      (item) => ehTituloExpandido(alvo, termoDeBusca(tipo, item.name)),
+    );
+  }
+
+  for (const regra of regras) {
+    const casados = candidatos.filter(regra);
+    if (casados.length === 0) continue;
+
+    return casados.length === 1 ? casados[0] : null;
+  }
+
+  return null;
 }
 
 function mapearResolucao(valor: string): ResolucaoFpsHq | null {
@@ -113,7 +201,11 @@ async function resolverEntidade(
   nome: string,
   sinal: AbortSignal,
 ): Promise<ResolucaoEntidade> {
-  const query = new URLSearchParams({ q: nome, type: tipo, limit: '10' });
+  const query = new URLSearchParams({
+    q: termoDeBusca(tipo, nome),
+    type: tipo,
+    limit: String(LIMITE_BUSCA),
+  });
   const resposta = await consultarJson(
     transporte,
     `${BASE_URL}/search?${query}`,
@@ -122,12 +214,10 @@ async function resolverEntidade(
   );
   if (!resposta) return { estado: 'falha', item: null };
 
-  const correspondencias = resposta.results.filter(
-    (item) => item.type === tipo && nomesEquivalentes(nome, item.name),
-  );
+  const item = escolherCandidato(tipo, nome, resposta.results);
 
-  return correspondencias.length === 1
-    ? { estado: 'resolvida', item: correspondencias[0] }
+  return item
+    ? { estado: 'resolvida', item }
     : { estado: 'sem-correspondencia', item: null };
 }
 
