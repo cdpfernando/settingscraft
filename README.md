@@ -1,75 +1,122 @@
 # SettingsCraft
 
-Você diz o jogo, o PC e a resolução. O app devolve as configurações gráficas na ordem do menu, cada uma com um valor, uma justificativa curta e um chute de FPS.
+Você informa o jogo, o hardware e a resolução. O SettingsCraft devolve as opções gráficas na ordem do menu do jogo, cada uma com um valor, uma justificativa curta e uma faixa estimada de FPS.
 
-Não gasta IA à toa. Primeiro olha o que já está no aparelho, consulta evidência de desempenho no FPSHQ e só então chama o Gemini. Groq entra se o Gemini falhar e recebe a mesma evidência.
+O app reaproveita recomendações salvas no dispositivo antes de consumir uma IA. Quando precisa gerar uma nova recomendação, tenta obter uma referência de desempenho no FPSHQ, chama o Gemini e usa o Groq como fallback. A referência externa ancora a geração, mas não substitui a recomendação produzida pela IA.
 
-## Rodando
+## Funcionalidades
 
-Node 20 ou mais. Uma chave do [Google AI Studio](https://aistudio.google.com/) é o mínimo. Groq é opcional.
+- Autocomplete de placas de vídeo e processadores, com entrada livre para modelos que não estejam na lista.
+- Validação e normalização de jogo, GPU, CPU, memória e resolução antes da consulta.
+- Opção de lembrar GPU, CPU, memória e resolução no dispositivo; o jogo nunca é lembrado.
+- Recomendações salvas localmente e reutilizadas em consultas equivalentes.
+- Histórico das recomendações salvas, da mais recente para a mais antiga.
+- Ação de gerar novamente, que ignora a leitura da recomendação salva e substitui o resultado daquela consulta.
+- Procedência visível: origem da entrega, gerador original, data, confiança do FPS e atribuição do FPSHQ quando disponível.
+
+## Rodando localmente
+
+Use Node.js 20 ou mais recente e instale as dependências:
 
 ```bash
 npm install
 ```
 
-Crie `.env.local` na raiz:
+Crie um arquivo `.env.local` na raiz. Fora do modo de exemplo, configure ao menos um dos provedores:
 
-```
+```dotenv
 EXPO_PUBLIC_GEMINI_API_KEY=sua_chave_aqui
 EXPO_PUBLIC_GROQ_API_KEY=sua_chave_aqui
 ```
 
-`EXPO_PUBLIC_*` entra no bundle em build time. A chave do Gemini fica no cliente. Para produção, a chamada tem que sair do app.
+Cada chave é opcional individualmente. Um provedor sem credencial simplesmente fica fora da cadeia; se os dois estiverem configurados, Gemini é tentado antes de Groq.
 
-Para mexer no layout sem gastar quota:
+Para trabalhar na interface sem rede nem consumo de quota:
 
-```
+```dotenv
 EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO=true
 ```
 
+Nesse modo, o app usa um gerador local identificado como `exemplo`, não consulta o FPSHQ e não chama os provedores de IA.
+
+> Variáveis `EXPO_PUBLIC_*` são incorporadas ao bundle em build time. As chaves ficam expostas no cliente. Em produção, as chamadas aos provedores de IA devem passar por um backend.
+
+Comandos disponíveis:
+
 ```bash
-npm start          # menu do Expo: Android, iOS ou web
+npm start          # abre o menu do Expo
 npm run android
 npm run ios
+npm run web
+npm test
+npm run lint
+npm run typecheck
 ```
 
-## O que está onde
+## Stack e estrutura
 
-Expo SDK 54, expo-router v6, React Native 0.81, React 19. Gemini via `fetch`. Groq via AI SDK. Animações com moti.
+O projeto usa Expo SDK 54, expo-router v6, React Native 0.81, React 19.1, TypeScript estrito e New Architecture. Gemini é integrado por REST, Groq pelo AI SDK, persistência por AsyncStorage, validação por Zod e animações por Moti.
 
+```text
+app/                              rotas de consulta e histórico
+components/                       campos, seletores, botões e apresentação do resultado
+assets/data/hardware.ts           sugestões de GPUs e CPUs para o autocomplete
+service/consulta-configuracoes.ts criação e identidade da consulta válida
+service/hardware-lembrado.ts      preferência de hardware persistida
+service/ai/
+  recomendador-padrao.ts          composição dos adapters usados pelo app
+  recomendador.ts                 orquestra a cadeia e finaliza o resultado
+  recomendacao-salva.ts           persistência e listagem das recomendações
+  provedor-fpshq.ts               evidência opcional de desempenho
+  fonte-gemini.ts                 adapter REST do Gemini
+  fonte-groq.ts                   adapter Groq via AI SDK
+  schema.ts                       contratos Zod da IA, evidência e resultado
+  prompt.ts                       instrução e prompt compartilhados pelos geradores
+styles/                           tokens e StyleSheets compartilhados
 ```
-app/           telas
-service/ai/    recomendação, adapters e schema Zod
-styles/        tokens e StyleSheets. Sem estilo inline.
-assets/data/   GPUs e CPUs do autocomplete
-```
 
-A recomendação é entregue por `service/ai/recomendador.ts`, cuja interface é `consultarConfiguracoes`. O módulo impõe a ordem Recomendação salva, enriquecimento opcional por Evidência de desempenho do FPSHQ, Gemini e Groq; a Recomendação salva tem prioridade e o FPSHQ apenas ancora a geração, nunca entrega sozinho uma recomendação. Gemini, Groq e o gerador de exemplo devolvem somente o conteúdo validado; o recomendador acrescenta procedência, horário, versão, confiança e evidência, valida o resultado final e então o persiste. O enriquecimento inteiro do FPSHQ tem orçamento máximo de 3s. Se ele falhar, o jogador não vê erro e o fluxo segue para a IA. Para gerar de novo, a tela expressa a intenção com `forcarNovaRecomendacao`, que pula apenas a leitura das Recomendações salvas e preserva a gravação do novo resultado.
+O alias `@/*` aponta para a raiz do projeto.
 
-O schema Zod em `service/ai/schema.ts` é o contrato. O JSON Schema que o Gemini recebe sai dele em runtime. Um segundo schema escrito à mão diverge, e você só percebe quando o parse quebra.
+## Fluxo de recomendação
 
-Incrementar `CONTRATO_VERSAO` torna incompatíveis Recomendações salvas de contratos anteriores. Sem TTL. Hardware e jogo não mudam sozinhos.
+1. `criarConsultaConfiguracoes()` valida os cinco campos, normaliza espaços e devolve uma `ConsultaConfiguracoes` imutável.
+2. O recomendador procura uma recomendação salva para a identidade normalizada da consulta, exceto quando recebe `forcarNovaRecomendacao`.
+3. Sem resultado salvo, o FPSHQ é consultado com orçamento total de 3 segundos. Falha, timeout, ausência ou ambiguidade de dados não interrompem a geração.
+4. Gemini é tentado e Groq funciona como fallback. Respostas passam por `RespostaIaSchema`.
+5. O recomendador acrescenta procedência, horário, versão do contrato, confiança e evidência; valida tudo com `ResultadoSchema`; salva o resultado; e então o entrega.
 
-### Procedência e confiança do FPS
+`consultarConfiguracoes()` nunca lança para a interface. Ele devolve `{ ok: true, resultado }` ou `{ ok: false, erro }`. Erros HTTP 400 e 401 encerram a cadeia por indicarem configuração inválida. Um 429 permite tentar o próximo gerador e produz uma mensagem específica se nenhum deles responder com sucesso.
 
-O resultado separa três conceitos que não são equivalentes:
+Cada identidade de consulta conserva somente a recomendação mais recente. O histórico é uma visão dessas mesmas recomendações salvas, não um segundo armazenamento. `CONTRATO_VERSAO` também participa do namespace persistido: ao incrementá-la, os registros de versões anteriores deixam de ser carregados. Não há TTL.
 
-- `fonte` diz por qual elo ele foi obtido agora: Recomendação salva (`salvo`), Gemini, Groq ou exemplo.
-- `geradoPor` preserva quem criou originalmente a recomendação, mesmo depois de um reaproveitamento salvo.
-- `evidenciaDesempenho` preserva a referência externa do FPSHQ, quando existe, incluindo benchmark/predição, correspondência completa/parcial, preset, resolução, números recebidos, horário e URL de atribuição.
+## Contrato, procedência e confiança
 
-`confiancaFps: media` significa somente que o FPSHQ informou um benchmark com correspondência completa de jogo, GPU, CPU e resolução. Predição, correspondência parcial ou ausência de evidência recebem confiança `baixa`. Nenhum resultado desta versão recebe confiança alta: o FPSHQ mede ou projeta um preset completo, não cada opção individual escolhida. `fps_min` permanece identificado como mínimo informado pelo FPSHQ e não é chamado de “1% low”. O menu final e sua faixa de FPS continuam sendo inferências da IA ancoradas, quando possível, por essa evidência.
+`service/ai/schema.ts` é a fonte única dos contratos. O JSON Schema enviado ao Gemini é derivado de `RespostaIaSchema` em runtime; não mantenha uma segunda definição manual.
+
+O resultado separa conceitos que não são equivalentes:
+
+- `fonte` informa como ele foi obtido nesta consulta: recomendação salva (`salvo`), Gemini, Groq ou exemplo.
+- `geradoPor` preserva quem criou originalmente a recomendação, inclusive quando ela é reaproveitada do dispositivo.
+- `evidenciaDesempenho` guarda a referência externa do FPSHQ, incluindo benchmark ou predição, correspondência completa ou parcial, preset, resolução, valores recebidos, horário e URL de atribuição.
+
+`confiancaFps: media` exige um benchmark com correspondência completa de jogo, GPU, CPU e resolução. Predição, correspondência parcial ou ausência de evidência recebem confiança `baixa`. Esta versão não atribui confiança alta: o FPSHQ mede ou projeta um preset completo, não cada opção escolhida pela IA. O campo `fps_min` é apresentado apenas como mínimo informado pelo FPSHQ, nunca como “1% low”.
+
+O FPSHQ só é consultado para 1080p, 1440p e 4K. Jogo e GPU precisam ter correspondência inequívoca; CPU não localizada ainda permite evidência parcial. O provedor escolhe o preset de maior qualidade cujo FPS mínimo atinge 60 e, se nenhum atingir a meta, usa o resultado válido de melhor desempenho.
 
 ## Uso responsável do FPSHQ
 
-A integração usa somente os endpoints REST documentados em `https://fpshq.com/api-docs/`; scraping de páginas não é permitido no projeto. A API não exige chave, portanto nenhuma credencial pública nova é adicionada ao bundle.
+A integração usa somente os endpoints REST documentados em [fpshq.com/api-docs](https://fpshq.com/api-docs/); scraping não faz parte do projeto. A API não exige chave, e a URL de atribuição devolvida é preservada e exibida ao jogador.
 
-O FPSHQ pede atribuição visível e informa uso justo aproximado de 60 requisições por minuto por IP. O app preserva o link devolvido pela API e identifica separadamente benchmarks e predições. Uso sustentado acima desse limite exige combinar acesso próprio com o FPSHQ.
+O serviço informa uso justo aproximado de 60 requisições por minuto por IP. Uso sustentado acima desse limite deve ser combinado diretamente com o FPSHQ. Antes de um lançamento comercial, obtenha confirmação escrita para o uso planejado; consumir apenas a API documentada, manter a atribuição e respeitar o limite reduz o risco, mas não substitui essa autorização.
 
-Antes de qualquer lançamento comercial, o responsável pelo produto precisa obter confirmação escrita do FPSHQ para o uso planejado. Consumir somente a API documentada, manter atribuição e respeitar uso justo reduz o risco, mas não substitui essa confirmação.
+## Antes de contribuir
 
-## O que ainda está torto
+Garanta que os três comandos terminem sem erros:
 
-A chave da IA continua no bundle. Para produção, a chamada precisa sair do app.
+```bash
+npm test
+npm run lint
+npm run typecheck
+```
 
-`npm test`, `npm run lint` e `npm run typecheck` precisam passar.
+Não versione `.env.local` nem qualquer chave de API.

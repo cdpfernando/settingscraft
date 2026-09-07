@@ -19,3 +19,11 @@ _Evitar_: benchmark da recomendação, resultado do FPSHQ
 **Nova recomendação**:
 Recomendação solicitada sem reutilizar um resultado anterior para a mesma consulta de configurações.
 _Evitar_: ignorar cache, atualizar resposta
+
+**Recomendação salva**:
+Recomendação preservada no dispositivo e associada à identidade de uma consulta de configurações. Cada identidade conserva apenas a recomendação mais recente. Ela pode ser reaproveitada automaticamente ou consultada pelo jogador no histórico; ser entregue como salva não altera qual gerador a produziu originalmente.
+_Evitar_: item de cache, registro de histórico
+
+**Histórico de recomendações**:
+Visão das recomendações salvas disponível ao jogador; não representa uma coleção distinta das recomendações usadas no reaproveitamento local.
+_Evitar_: cache, armazenamento do histórico
