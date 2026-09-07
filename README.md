@@ -44,18 +44,18 @@ styles/        tokens e StyleSheets. Sem estilo inline.
 assets/data/   GPUs e CPUs do autocomplete
 ```
 
-A recomendação é entregue por `service/ai/recomendador.ts`, cuja interface é `consultarConfiguracoes`. O módulo impõe a ordem cache local, enriquecimento opcional pelo FPSHQ, Gemini e Groq; o cache continua tendo prioridade e o FPSHQ apenas ancora a geração, nunca entrega sozinho uma recomendação. Gemini, Groq e o gerador de exemplo devolvem somente o conteúdo validado; o recomendador acrescenta procedência, horário, versão, confiança e evidência, valida o resultado final e então o persiste. O enriquecimento inteiro do FPSHQ tem orçamento máximo de 3s. Se ele falhar, o jogador não vê erro e o fluxo segue para a IA. Para gerar de novo, a tela expressa a intenção com `forcarNovaRecomendacao`, que pula apenas a leitura do cache e preserva a gravação do novo resultado.
+A recomendação é entregue por `service/ai/recomendador.ts`, cuja interface é `consultarConfiguracoes`. O módulo impõe a ordem Recomendação salva, enriquecimento opcional por Evidência de desempenho do FPSHQ, Gemini e Groq; a Recomendação salva tem prioridade e o FPSHQ apenas ancora a geração, nunca entrega sozinho uma recomendação. Gemini, Groq e o gerador de exemplo devolvem somente o conteúdo validado; o recomendador acrescenta procedência, horário, versão, confiança e evidência, valida o resultado final e então o persiste. O enriquecimento inteiro do FPSHQ tem orçamento máximo de 3s. Se ele falhar, o jogador não vê erro e o fluxo segue para a IA. Para gerar de novo, a tela expressa a intenção com `forcarNovaRecomendacao`, que pula apenas a leitura das Recomendações salvas e preserva a gravação do novo resultado.
 
 O schema Zod em `service/ai/schema.ts` é o contrato. O JSON Schema que o Gemini recebe sai dele em runtime. Um segundo schema escrito à mão diverge, e você só percebe quando o parse quebra.
 
-Incrementar `CONTRATO_VERSAO` invalida o cache antigo. Sem TTL. Hardware e jogo não mudam sozinhos.
+Incrementar `CONTRATO_VERSAO` torna incompatíveis Recomendações salvas de contratos anteriores. Sem TTL. Hardware e jogo não mudam sozinhos.
 
 ### Procedência e confiança do FPS
 
 O resultado separa três conceitos que não são equivalentes:
 
-- `fonte` diz por qual elo ele foi obtido agora: cache local (`salvo`), Gemini, Groq ou exemplo.
-- `geradoPor` preserva quem criou originalmente a recomendação, mesmo depois de um cache hit.
+- `fonte` diz por qual elo ele foi obtido agora: Recomendação salva (`salvo`), Gemini, Groq ou exemplo.
+- `geradoPor` preserva quem criou originalmente a recomendação, mesmo depois de um reaproveitamento salvo.
 - `evidenciaDesempenho` preserva a referência externa do FPSHQ, quando existe, incluindo benchmark/predição, correspondência completa/parcial, preset, resolução, números recebidos, horário e URL de atribuição.
 
 `confiancaFps: media` significa somente que o FPSHQ informou um benchmark com correspondência completa de jogo, GPU, CPU e resolução. Predição, correspondência parcial ou ausência de evidência recebem confiança `baixa`. Nenhum resultado desta versão recebe confiança alta: o FPSHQ mede ou projeta um preset completo, não cada opção individual escolhida. `fps_min` permanece identificado como mínimo informado pelo FPSHQ e não é chamado de “1% low”. O menu final e sua faixa de FPS continuam sendo inferências da IA ancoradas, quando possível, por essa evidência.

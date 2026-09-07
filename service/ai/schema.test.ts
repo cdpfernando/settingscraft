@@ -50,7 +50,7 @@ test('ResultadoSchema exige procedência, confiança, evidência e versão atuai
 
   for (const invalido of [
     { ...atual, fonte: 'fpshq' },
-    { ...atual, geradoPor: 'cache-local' },
+    { ...atual, geradoPor: 'armazenamento' },
     { ...atual, confiancaFps: 'alta' },
     { ...atual, versaoContrato: CONTRATO_VERSAO - 1 },
     {

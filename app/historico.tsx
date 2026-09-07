@@ -1,19 +1,22 @@
 import { Botao } from '@/components/botao';
 import { formatarDataGeracao, ResultadoCard } from '@/components/resultado-card';
-import { criarRepositorioCacheLocal, type ItemHistorico } from '@/service/ai/cache-local';
+import {
+  criarRepositorioRecomendacoesSalvas,
+  type RecomendacaoSalva,
+} from '@/service/ai/recomendacao-salva';
 import { Cores, historicoStyles } from '@/styles';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 
-const repositorio = criarRepositorioCacheLocal();
+const repositorio = criarRepositorioRecomendacoesSalvas();
 
-function resumoHardware(item: ItemHistorico): string {
+function resumoHardware(item: RecomendacaoSalva): string {
   const { placaVideo, processador, memoria, resolucao } = item.consulta;
   return `${placaVideo} · ${processador} · ${memoria} · ${resolucao}`;
 }
 
-function resumoEvidencia(item: ItemHistorico): string {
+function resumoEvidencia(item: RecomendacaoSalva): string {
   const tipo = item.resultado.evidenciaDesempenho?.tipo;
   if (tipo === 'benchmark') return 'benchmark FPSHQ';
   if (tipo === 'predicao') return 'projeção FPSHQ';
@@ -22,9 +25,9 @@ function resumoEvidencia(item: ItemHistorico): string {
 
 export default function Historico() {
   const router = useRouter();
-  const [itens, setItens] = useState<ItemHistorico[]>([]);
+  const [itens, setItens] = useState<RecomendacaoSalva[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [itemSelecionado, setItemSelecionado] = useState<ItemHistorico | null>(null);
+  const [itemSelecionado, setItemSelecionado] = useState<RecomendacaoSalva | null>(null);
 
   useEffect(() => {
     let ativo = true;

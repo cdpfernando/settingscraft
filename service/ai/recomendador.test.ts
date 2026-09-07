@@ -5,8 +5,8 @@ import { criarConsultaTeste } from '../testes/criar-consulta-teste';
 import { ErroFonteConfiguracao, ErroFonteLimite } from './fonte';
 import {
   criarRecomendador,
-  type CacheRecomendacao,
   type ConsultaResultado,
+  type RecomendacoesSalvas,
 } from './recomendador';
 import {
   CONTRATO_VERSAO,
@@ -55,15 +55,15 @@ function resultadoSalvo(geradoPor: GeradoPor = 'gemini'): ResultadoSalvo {
   };
 }
 
-function criarCache(
+function criarRecomendacoesSalvas(
   resultadoEncontrado: ResultadoSalvo | null,
   chamadas: string[],
   salvos: Resultado[] = [],
   falharAoSalvar = false,
-): CacheRecomendacao {
+): RecomendacoesSalvas {
   return {
     async buscar() {
-      chamadas.push('cache-local');
+      chamadas.push('recomendacoes-salvas');
       return resultadoEncontrado;
     },
     async salvar(_consulta, resultado) {
@@ -89,25 +89,25 @@ async function semErrosNoConsole<T>(acao: () => Promise<T>): Promise<T> {
   }
 }
 
-test('cache local encerra a consulta, marca a entrega como salva e preserva o gerador', async () => {
+test('Recomendação salva encerra a consulta e preserva o gerador', async () => {
   const chamadas: string[] = [];
   const armazenado = resultadoSalvo('gemini');
   const resposta = await criarRecomendador({
-    cacheLocal: criarCache(armazenado, chamadas),
+    recomendacoesSalvas: criarRecomendacoesSalvas(armazenado, chamadas),
     fpsHq: { nome: 'fpshq', async buscar() { assert.fail('FPSHQ não deve rodar.'); } },
     gemini: { nome: 'gemini', async gerar() { assert.fail('Gemini não deve rodar.'); } },
     groq: { nome: 'groq', async gerar() { assert.fail('Groq não deve rodar.'); } },
   }).consultarConfiguracoes(consulta);
 
   assert.strictEqual(obterResultado(resposta), armazenado);
-  assert.deepEqual(chamadas, ['cache-local']);
+  assert.deepEqual(chamadas, ['recomendacoes-salvas']);
 });
 
 test('miss consulta evidência uma vez, tenta Gemini antes de Groq e finaliza o conteúdo', async () => {
   const chamadas: string[] = [];
   const salvos: Resultado[] = [];
   const resposta = await criarRecomendador({
-    cacheLocal: criarCache(null, chamadas, salvos),
+    recomendacoesSalvas: criarRecomendacoesSalvas(null, chamadas, salvos),
     fpsHq: { nome: 'fpshq', async buscar() { chamadas.push('fpshq'); return evidencia; } },
     gemini: {
       nome: 'gemini',
@@ -138,14 +138,55 @@ test('miss consulta evidência uma vez, tenta Gemini antes de Groq e finaliza o 
   assert.equal(resultado.versaoContrato, CONTRATO_VERSAO);
   assert.equal(ResultadoSchema.safeParse(resultado).success, true);
   assert.deepEqual(salvos, [resultado]);
-  assert.deepEqual(chamadas, ['cache-local', 'fpshq', 'gemini', 'groq', 'salvar']);
+  assert.deepEqual(chamadas, ['recomendacoes-salvas', 'fpshq', 'gemini', 'groq', 'salvar']);
 });
 
-test('nova recomendação pula só a leitura do cache e persiste o resultado finalizado', async () => {
+test('falha inesperada na leitura local mantém a cadeia ativa até salvar o fallback', async () => {
+  const chamadas: string[] = [];
+  const resposta = await criarRecomendador({
+    recomendacoesSalvas: {
+      async buscar() {
+        chamadas.push('recomendacoes-salvas');
+        throw new Error('armazenamento indisponível');
+      },
+      async salvar() {
+        chamadas.push('salvar');
+      },
+    },
+    fpsHq: {
+      nome: 'fpshq',
+      async buscar() {
+        chamadas.push('fpshq');
+        return evidencia;
+      },
+    },
+    gemini: {
+      nome: 'gemini',
+      async gerar() {
+        chamadas.push('gemini');
+        return null;
+      },
+    },
+    groq: {
+      nome: 'groq',
+      async gerar() {
+        chamadas.push('groq');
+        return respostaIa;
+      },
+    },
+  }).consultarConfiguracoes(consulta);
+
+  const resultado = obterResultado(resposta);
+  assert.equal(resultado.geradoPor, 'groq');
+  assert.deepEqual(resultado.evidenciaDesempenho, evidencia);
+  assert.deepEqual(chamadas, ['recomendacoes-salvas', 'fpshq', 'gemini', 'groq', 'salvar']);
+});
+
+test('Nova recomendação pula só a busca salva e persiste o resultado finalizado', async () => {
   const chamadas: string[] = [];
   const salvos: Resultado[] = [];
   const resposta = await criarRecomendador({
-    cacheLocal: criarCache(resultadoSalvo(), chamadas, salvos),
+    recomendacoesSalvas: criarRecomendacoesSalvas(resultadoSalvo(), chamadas, salvos),
     gemini: { nome: 'gemini', async gerar() { chamadas.push('gemini'); return respostaIa; } },
   }).consultarConfiguracoes(consulta, { forcarNovaRecomendacao: true });
 
@@ -163,7 +204,7 @@ test('conteúdo inválido não é persistido e permite o próximo gerador', asyn
   const salvos: Resultado[] = [];
 
   const resposta = await semErrosNoConsole(() => criarRecomendador({
-    cacheLocal: criarCache(null, chamadas, salvos),
+    recomendacoesSalvas: criarRecomendacoesSalvas(null, chamadas, salvos),
     gemini: {
       nome: 'gemini',
       async gerar() {
@@ -183,24 +224,24 @@ test('conteúdo inválido não é persistido e permite o próximo gerador', asyn
   assert.equal(obterResultado(resposta).geradoPor, 'groq');
   assert.equal(salvos.length, 1);
   assert.equal(salvos[0].geradoPor, 'groq');
-  assert.deepEqual(chamadas, ['cache-local', 'gemini', 'groq', 'salvar']);
+  assert.deepEqual(chamadas, ['recomendacoes-salvas', 'gemini', 'groq', 'salvar']);
 });
 
 test('falha ao persistir não descarta uma recomendação válida', async () => {
   const chamadas: string[] = [];
   const resposta = await semErrosNoConsole(() => criarRecomendador({
-    cacheLocal: criarCache(null, chamadas, [], true),
+    recomendacoesSalvas: criarRecomendacoesSalvas(null, chamadas, [], true),
     gemini: { nome: 'gemini', async gerar() { return respostaIa; } },
   }).consultarConfiguracoes(consulta));
 
   assert.equal(obterResultado(resposta).geradoPor, 'gemini');
-  assert.deepEqual(chamadas, ['cache-local', 'salvar']);
+  assert.deepEqual(chamadas, ['recomendacoes-salvas', 'salvar']);
 });
 
 test('modo de exemplo usa somente o gerador in-process identificado como exemplo', async () => {
   const chamadas: string[] = [];
   const resposta = await criarRecomendador({
-    cacheLocal: criarCache(null, chamadas),
+    recomendacoesSalvas: criarRecomendacoesSalvas(null, chamadas),
     exemplo: { nome: 'exemplo', async gerar() { chamadas.push('exemplo'); return respostaIa; } },
     fpsHq: { nome: 'fpshq', async buscar() { assert.fail('FPSHQ não deve rodar.'); } },
     gemini: { nome: 'gemini', async gerar() { assert.fail('Gemini não deve rodar.'); } },
@@ -210,14 +251,14 @@ test('modo de exemplo usa somente o gerador in-process identificado como exemplo
   const resultado = obterResultado(resposta);
   assert.equal(resultado.fonte, 'exemplo');
   assert.equal(resultado.geradoPor, 'exemplo');
-  assert.deepEqual(chamadas, ['cache-local', 'exemplo', 'salvar']);
+  assert.deepEqual(chamadas, ['recomendacoes-salvas', 'exemplo', 'salvar']);
 });
 
 test('erros de configuração encerram a cadeia e limite preserva o fallback', async () => {
   await semErrosNoConsole(async () => {
     const chamadas: string[] = [];
     const fallback = await criarRecomendador({
-      cacheLocal: criarCache(null, chamadas),
+      recomendacoesSalvas: criarRecomendacoesSalvas(null, chamadas),
       gemini: {
         nome: 'gemini',
         async gerar() {
@@ -234,10 +275,10 @@ test('erros de configuração encerram a cadeia e limite preserva o fallback', a
       },
     }).consultarConfiguracoes(consulta);
     assert.equal(obterResultado(fallback).geradoPor, 'groq');
-    assert.deepEqual(chamadas, ['cache-local', 'gemini', 'groq', 'salvar']);
+    assert.deepEqual(chamadas, ['recomendacoes-salvas', 'gemini', 'groq', 'salvar']);
 
     const limite = await criarRecomendador({
-      cacheLocal: criarCache(null, []),
+      recomendacoesSalvas: criarRecomendacoesSalvas(null, []),
       gemini: { nome: 'gemini', async gerar() { throw new ErroFonteLimite('gemini'); } },
     }).consultarConfiguracoes(consulta);
     assert.deepEqual(limite, {
@@ -246,7 +287,7 @@ test('erros de configuração encerram a cadeia e limite preserva o fallback', a
     });
 
     const configuracao = await criarRecomendador({
-      cacheLocal: criarCache(null, []),
+      recomendacoesSalvas: criarRecomendacoesSalvas(null, []),
       gemini: {
         nome: 'gemini',
         async gerar() { throw new ErroFonteConfiguracao('gemini', 401); },

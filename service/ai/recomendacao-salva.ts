@@ -17,31 +17,45 @@ export type { ArmazenamentoChaveValor } from '../armazenamento';
 
 const PREFIXO_CHAVE = '@settingscraft/resultados';
 
-export interface ItemHistorico {
+export interface RecomendacaoSalva {
   consulta: ConsultaConfiguracoes;
   resultado: ResultadoSalvo;
 }
 
-export interface RepositorioCacheLocal {
+export interface RepositorioRecomendacoesSalvas {
   buscar(consulta: ConsultaConfiguracoes): Promise<ResultadoSalvo | null>;
   salvar(consulta: ConsultaConfiguracoes, resultado: Resultado): Promise<void>;
-  listar(): Promise<ItemHistorico[]>;
+  listar(): Promise<RecomendacaoSalva[]>;
 }
 
 function prefixoChave(): string {
   return `${PREFIXO_CHAVE}:v${CONTRATO_VERSAO}:`;
 }
 
-// A versão na chave invalida cache antigo sem migração.
-function criarChaveCache(consulta: ConsultaConfiguracoes): string {
+// A versão na chave torna registros de contratos anteriores incompatíveis sem migração.
+function criarChaveRecomendacaoSalva(consulta: ConsultaConfiguracoes): string {
   return `${prefixoChave()}${identificarConsultaConfiguracoes(consulta)}`;
+}
+
+async function removerRegistroCorrompido(
+  armazenamento: ArmazenamentoChaveValor,
+  chave: string,
+): Promise<void> {
+  try {
+    await armazenamento.removeItem(chave);
+  } catch (erro) {
+    console.error(
+      '[recomendacoesSalvas] Não foi possível remover o registro corrompido:',
+      erro,
+    );
+  }
 }
 
 async function lerRegistro(
   armazenamento: ArmazenamentoChaveValor,
   chave: string,
   valor: string,
-): Promise<ItemHistorico | null> {
+): Promise<RecomendacaoSalva | null> {
   try {
     const bruto: unknown = JSON.parse(valor);
     if (typeof bruto === 'object' && bruto !== null && !Array.isArray(bruto)) {
@@ -60,16 +74,16 @@ async function lerRegistro(
     // O registro ilegível segue pelo mesmo descarte dos demais dados inválidos.
   }
 
-  await armazenamento.removeItem(chave);
+  await removerRegistroCorrompido(armazenamento, chave);
   return null;
 }
 
-export function criarRepositorioCacheLocal(
+export function criarRepositorioRecomendacoesSalvas(
   armazenamento: ArmazenamentoChaveValor = AsyncStorage,
-): RepositorioCacheLocal {
+): RepositorioRecomendacoesSalvas {
   return {
     async buscar(consulta) {
-      const chave = criarChaveCache(consulta);
+      const chave = criarChaveRecomendacaoSalva(consulta);
       const armazenado = await armazenamento.getItem(chave);
       if (armazenado === null) return null;
 
@@ -78,15 +92,15 @@ export function criarRepositorioCacheLocal(
     },
     salvar(consulta, resultado) {
       const registro = { consulta, resultado: ResultadoSchema.parse(resultado) };
-      return armazenamento.setItem(criarChaveCache(consulta), JSON.stringify(registro));
+      return armazenamento.setItem(criarChaveRecomendacaoSalva(consulta), JSON.stringify(registro));
     },
     async listar() {
       const todasChaves = await armazenamento.getAllKeys();
-      const chavesCache = todasChaves.filter((chave) => chave.startsWith(prefixoChave()));
-      if (chavesCache.length === 0) return [];
+      const chavesRecomendacoesSalvas = todasChaves.filter((chave) => chave.startsWith(prefixoChave()));
+      if (chavesRecomendacoesSalvas.length === 0) return [];
 
-      const pares = await armazenamento.multiGet(chavesCache);
-      const itens: ItemHistorico[] = [];
+      const pares = await armazenamento.multiGet(chavesRecomendacoesSalvas);
+      const itens: RecomendacaoSalva[] = [];
 
       for (const [chave, valor] of pares) {
         if (valor === null) continue;

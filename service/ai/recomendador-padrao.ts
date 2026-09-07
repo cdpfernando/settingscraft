@@ -1,6 +1,6 @@
 import { fetch as expoFetch } from 'expo/fetch';
 
-import { criarRepositorioCacheLocal } from './cache-local';
+import { criarRepositorioRecomendacoesSalvas } from './recomendacao-salva';
 import { criarFonteGemini } from './fonte-gemini';
 import { criarFonteGroq } from './fonte-groq';
 import type { Gerador } from './fonte';
@@ -8,7 +8,7 @@ import { criarProvedorEvidenciaFpsHq } from './provedor-fpshq';
 import { criarRecomendador } from './recomendador';
 import type { RespostaIa } from './schema';
 
-const repositorioCacheLocal = criarRepositorioCacheLocal();
+const recomendacoesSalvas = criarRepositorioRecomendacoesSalvas();
 const apiKeyGemini = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const apiKeyGroq = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 const usarResultadoExemplo = process.env.EXPO_PUBLIC_USAR_RESULTADO_EXEMPLO === 'true';
@@ -44,7 +44,7 @@ if (!usarResultadoExemplo && !apiKeyGroq) {
 }
 
 export const recomendadorPadrao = criarRecomendador({
-  cacheLocal: repositorioCacheLocal,
+  recomendacoesSalvas,
   exemplo: geradorExemplo,
   fpsHq: usarResultadoExemplo
     ? undefined

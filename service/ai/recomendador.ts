@@ -18,13 +18,13 @@ export interface OpcoesConsulta {
   forcarNovaRecomendacao?: boolean;
 }
 
-export interface CacheRecomendacao {
+export interface RecomendacoesSalvas {
   buscar(consulta: ConsultaConfiguracoes): Promise<ResultadoSalvo | null>;
   salvar(consulta: ConsultaConfiguracoes, resultado: Resultado): Promise<void>;
 }
 
 export interface AdaptadoresRecomendador {
-  cacheLocal: CacheRecomendacao;
+  recomendacoesSalvas: RecomendacoesSalvas;
   fpsHq?: ProvedorEvidencia;
   exemplo?: Gerador;
   gemini?: Gerador;
@@ -78,22 +78,13 @@ export function criarRecomendador(adaptadores: AdaptadoresRecomendador): Recomen
     async consultarConfiguracoes(consulta, opcoes = {}) {
       let erroLimite: ErroFonteLimite | null = null;
 
-      // A cadeia começa no cache. A intenção de uma recomendação nova só pula esta leitura.
+      // A cadeia começa nas Recomendações salvas. Uma Nova recomendação só pula esta leitura.
       if (!opcoes.forcarNovaRecomendacao) {
         try {
-          const resultadoCache = await adaptadores.cacheLocal.buscar(consulta);
-          if (resultadoCache) return { ok: true, resultado: resultadoCache };
+          const recomendacaoSalva = await adaptadores.recomendacoesSalvas.buscar(consulta);
+          if (recomendacaoSalva) return { ok: true, resultado: recomendacaoSalva };
         } catch (erro) {
-          if (erro instanceof ErroFonteConfiguracao) {
-            console.error(`[recomendador] ${erro.message}`);
-            return { ok: false, erro: MENSAGEM_ERRO };
-          }
-          if (erro instanceof ErroFonteLimite) {
-            console.error(`[recomendador] ${erro.message}`);
-            erroLimite = erro;
-          } else {
-            console.error('[recomendador] Falha inesperada no cache local:', erro);
-          }
+          console.error('[recomendador] Falha inesperada nas Recomendações salvas:', erro);
         }
       }
 
@@ -116,7 +107,7 @@ export function criarRecomendador(adaptadores: AdaptadoresRecomendador): Recomen
           if (!resultado) continue;
 
           try {
-            await adaptadores.cacheLocal.salvar(consulta, resultado);
+            await adaptadores.recomendacoesSalvas.salvar(consulta, resultado);
           } catch (erro) {
             console.error('[recomendador] Não foi possível salvar o resultado:', erro);
           }

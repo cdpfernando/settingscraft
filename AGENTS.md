@@ -1,6 +1,6 @@
 # SettingsCraft
 
-Expo SDK 54. O jogador informa hardware e jogo. O app percorre cache local, Gemini e Groq, e devolve o menu gráfico preenchido.
+Expo SDK 54. O jogador informa hardware e jogo. O app percorre Recomendação salva, Gemini e Groq, e devolve o menu gráfico preenchido.
 
 ## Expo mudou. Leia a doc da versão certa.
 
@@ -39,7 +39,7 @@ A resposta da IA passa por `RespostaIaSchema` antes de virar `Resultado`. `confi
 
 ## Cadeia
 
-Ordem: cache local, Gemini, Groq.
+Ordem: Recomendação salva, Evidência de desempenho opcional, Gemini, Groq.
 
 - `consultarConfiguracoes()` nunca lança. Devolve `ConsultaResultado`: `{ ok: true, resultado }` ou `{ ok: false, erro }`. A tela não tem try/catch.
 - 429 tem mensagem própria.
