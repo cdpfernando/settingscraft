@@ -38,16 +38,6 @@ function respostaErro(status: number): Response {
   });
 }
 
-async function semErrosNoConsole<T>(acao: () => Promise<T>): Promise<T> {
-  const erroOriginal = console.error;
-  console.error = () => undefined;
-  try {
-    return await acao();
-  } finally {
-    console.error = erroOriginal;
-  }
-}
-
 test('envia o contrato estruturado e valida o conteúdo retornado', async () => {
   let urlRecebida: URL | undefined;
   let requisicao: Record<string, unknown> | undefined;
@@ -79,25 +69,23 @@ test('envia o contrato estruturado e valida o conteúdo retornado', async () => 
 });
 
 test('conteúdo fora de RespostaIaSchema é rejeitado', async () => {
-  const resultado = await semErrosNoConsole(() => criarFonteGroq({
+  const resultado = await criarFonteGroq({
     apiKey: 'teste',
     transporte: async () => respostaGroq({ configuracoes: [], fpsEstimado: 60 }),
-  }).gerar({ consulta }));
+  }).gerar({ consulta });
 
   assert.equal(resultado, null);
 });
 
 for (const status of [400, 401] as const) {
   test(`HTTP ${status} produz erro de configuração`, async () => {
-    await semErrosNoConsole(async () => {
-      await assert.rejects(
-        criarFonteGroq({
-          apiKey: 'teste',
-          transporte: async () => respostaErro(status),
-        }).gerar({ consulta }),
-        (erro: unknown) => erro instanceof ErroFonteConfiguracao && erro.status === status,
-      );
-    });
+    await assert.rejects(
+      criarFonteGroq({
+        apiKey: 'teste',
+        transporte: async () => respostaErro(status),
+      }).gerar({ consulta }),
+      (erro: unknown) => erro instanceof ErroFonteConfiguracao && erro.status === status,
+    );
   });
 }
 
@@ -132,10 +120,10 @@ test('HTTP 5xx devolve ausência sem retry do SDK', async () => {
 });
 
 test('falha de rede devolve ausência de resultado', async () => {
-  const resultado = await semErrosNoConsole(() => criarFonteGroq({
+  const resultado = await criarFonteGroq({
     apiKey: 'teste',
     transporte: async () => { throw new TypeError('rede indisponível'); },
-  }).gerar({ consulta }));
+  }).gerar({ consulta });
 
   assert.equal(resultado, null);
 });

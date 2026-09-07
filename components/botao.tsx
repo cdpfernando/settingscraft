@@ -7,7 +7,6 @@ interface BotaoProps {
   carregando?: boolean;
   desabilitado?: boolean;
   variante?: 'primario' | 'secundario';
-  acessibilidade?: string;
   onPress: () => void;
 }
 
@@ -17,7 +16,6 @@ export function Botao({
   carregando = false,
   desabilitado = false,
   variante = 'primario',
-  acessibilidade,
   onPress,
 }: BotaoProps) {
   const primario = variante === 'primario';
@@ -27,7 +25,7 @@ export function Botao({
       onPress={onPress}
       disabled={desabilitado}
       accessibilityRole="button"
-      accessibilityLabel={acessibilidade ?? titulo}
+      accessibilityLabel={titulo}
       accessibilityState={{ disabled: desabilitado, busy: carregando }}
       style={({ pressed }) => [
         primario ? botaoStyles.primario : botaoStyles.secundario,

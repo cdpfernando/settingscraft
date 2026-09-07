@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const CONTRATO_VERSAO = 2;
 
-export const ConfiguracaoSchema = z.object({
+const ConfiguracaoSchema = z.object({
   nome: z.string(),
   valor: z.string(),
   justificativa: z.string(),
@@ -29,7 +29,7 @@ export const UrlAtribuicaoFpsHqSchema = z.url().refine((valor) => {
   }
 }, 'A URL de atribuição precisa pertencer ao FPSHQ.');
 
-export const PresetReferenciaSchema = z.enum(['low', 'medium', 'high', 'ultra']);
+const PresetReferenciaSchema = z.enum(['low', 'medium', 'high', 'ultra']);
 export type PresetReferencia = z.infer<typeof PresetReferenciaSchema>;
 
 export const EvidenciaDesempenhoSchema = z.object({
@@ -66,13 +66,13 @@ export const EvidenciaDesempenhoSchema = z.object({
 
 export type EvidenciaDesempenho = z.infer<typeof EvidenciaDesempenhoSchema>;
 
-export const GeradoPorSchema = z.enum(['gemini', 'groq', 'exemplo']);
+const GeradoPorSchema = z.enum(['gemini', 'groq', 'exemplo']);
 export type GeradoPor = z.infer<typeof GeradoPorSchema>;
 
-export const ConfiancaFpsSchema = z.enum(['media', 'baixa']);
+const ConfiancaFpsSchema = z.enum(['media', 'baixa']);
 export type ConfiancaFps = z.infer<typeof ConfiancaFpsSchema>;
 
-export const FonteEntregaSchema = z.enum([
+const FonteEntregaSchema = z.enum([
   'salvo',
   'gemini',
   'groq',

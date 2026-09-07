@@ -22,16 +22,6 @@ function respostaGemini(conteudo: unknown): Response {
   });
 }
 
-async function semErrosNoConsole<T>(acao: () => Promise<T>): Promise<T> {
-  const erroOriginal = console.error;
-  console.error = () => undefined;
-  try {
-    return await acao();
-  } finally {
-    console.error = erroOriginal;
-  }
-}
-
 test('envia instrução, prompt e JSON Schema derivado no payload', async () => {
   let urlRecebida: URL | undefined;
   let requisicao: Record<string, unknown> | undefined;
@@ -68,43 +58,39 @@ test('envia instrução, prompt e JSON Schema derivado no payload', async () => 
 });
 
 test('conteúdo fora de RespostaIaSchema é rejeitado', async () => {
-  const resultado = await semErrosNoConsole(() => criarFonteGemini({
+  const resultado = await criarFonteGemini({
     apiKey: 'teste',
     transporte: async () => respostaGemini({ configuracoes: 'inválidas', fpsEstimado: 60 }),
-  }).gerar({ consulta }));
+  }).gerar({ consulta });
 
   assert.equal(resultado, null);
 });
 
 for (const status of [400, 401] as const) {
   test(`HTTP ${status} produz erro de configuração`, async () => {
-    await semErrosNoConsole(async () => {
-      await assert.rejects(
-        criarFonteGemini({
-          apiKey: 'teste',
-          transporte: async () => new Response('{}', { status }),
-        }).gerar({ consulta }),
-        (erro: unknown) => erro instanceof ErroFonteConfiguracao && erro.status === status,
-      );
-    });
+    await assert.rejects(
+      criarFonteGemini({
+        apiKey: 'teste',
+        transporte: async () => new Response('{}', { status }),
+      }).gerar({ consulta }),
+      (erro: unknown) => erro instanceof ErroFonteConfiguracao && erro.status === status,
+    );
   });
 }
 
 test('HTTP 429 produz erro de limite em uma única tentativa', async () => {
   let chamadas = 0;
 
-  await semErrosNoConsole(async () => {
-    await assert.rejects(
-      criarFonteGemini({
-        apiKey: 'teste',
-        transporte: async () => {
-          chamadas += 1;
-          return new Response('{}', { status: 429 });
-        },
-      }).gerar({ consulta }),
-      ErroFonteLimite,
-    );
-  });
+  await assert.rejects(
+    criarFonteGemini({
+      apiKey: 'teste',
+      transporte: async () => {
+        chamadas += 1;
+        return new Response('{}', { status: 429 });
+      },
+    }).gerar({ consulta }),
+    ErroFonteLimite,
+  );
   assert.equal(chamadas, 1);
 });
 
@@ -123,10 +109,10 @@ test('HTTP 5xx devolve ausência em uma única tentativa', async () => {
 });
 
 test('falha de rede devolve ausência de resultado', async () => {
-  const resultado = await semErrosNoConsole(() => criarFonteGemini({
+  const resultado = await criarFonteGemini({
     apiKey: 'teste',
     transporte: async () => { throw new TypeError('rede indisponível'); },
-  }).gerar({ consulta }));
+  }).gerar({ consulta });
 
   assert.equal(resultado, null);
 });

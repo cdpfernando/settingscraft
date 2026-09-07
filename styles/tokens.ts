@@ -31,9 +31,7 @@ export const Espaco = {
 
 export const Raio = {
   sm: 8,
-  md: 8,
   lg: 24,
-  pill: 999,
 } as const;
 
 export const Fonte = {
@@ -41,12 +39,10 @@ export const Fonte = {
   tamanhoSm: 13,
   tamanhoMd: 15,
   tamanhoLg: 17,
-  tamanhoXl: 20,
 
   pesoNormal: '400' as const,
   pesoMedio: '500' as const,
   pesoSemibold: '600' as const,
-  pesoBold: '700' as const,
 
   alturaLinhaNormal: 20,
   alturaLinhaLarga: 22,

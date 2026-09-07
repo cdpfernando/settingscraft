@@ -55,7 +55,7 @@ type ResolucaoEntidade =
   | { estado: 'sem-correspondencia'; item: null }
   | { estado: 'falha'; item: null };
 
-export interface ProvedorFpsHqOpcoes {
+interface ProvedorFpsHqOpcoes {
   transporte: TransporteHttp;
   tempoLimiteMs?: number;
 }

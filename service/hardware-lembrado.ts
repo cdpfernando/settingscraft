@@ -9,7 +9,7 @@ import {
   type Resolucao,
 } from './consulta-configuracoes';
 
-export const CHAVE_HARDWARE_LEMBRADO = '@settingscraft/hardware-lembrado';
+const CHAVE_HARDWARE_LEMBRADO = '@settingscraft/hardware-lembrado';
 
 const TextoLivreNaoVazioSchema = z.string().refine((valor) => valor.trim().length > 0);
 
@@ -27,7 +27,7 @@ const HardwareLembradoSchema: z.ZodType<HardwareLembrado> = z.object({
   resolucao: z.enum(RESOLUCOES),
 });
 
-export interface RepositorioHardwareLembrado {
+interface RepositorioHardwareLembrado {
   ler(): Promise<HardwareLembrado | null>;
   salvar(hardware: HardwareLembrado): Promise<void>;
   apagar(): Promise<void>;

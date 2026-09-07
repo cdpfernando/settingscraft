@@ -13,8 +13,6 @@ import {
   type ResultadoSalvo,
 } from './schema';
 
-export type { ArmazenamentoChaveValor } from '../armazenamento';
-
 const PREFIXO_CHAVE = '@settingscraft/resultados';
 
 export interface RecomendacaoSalva {
@@ -22,7 +20,7 @@ export interface RecomendacaoSalva {
   resultado: ResultadoSalvo;
 }
 
-export interface RepositorioRecomendacoesSalvas {
+interface RepositorioRecomendacoesSalvas {
   buscar(consulta: ConsultaConfiguracoes): Promise<ResultadoSalvo | null>;
   salvar(consulta: ConsultaConfiguracoes, resultado: Resultado): Promise<void>;
   listar(): Promise<RecomendacaoSalva[]>;
@@ -71,7 +69,6 @@ async function lerRegistro(
       }
     }
   } catch {
-    // O registro ilegível segue pelo mesmo descarte dos demais dados inválidos.
   }
 
   await removerRegistroCorrompido(armazenamento, chave);

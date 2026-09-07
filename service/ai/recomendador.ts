@@ -78,7 +78,6 @@ export function criarRecomendador(adaptadores: AdaptadoresRecomendador): Recomen
     async consultarConfiguracoes(consulta, opcoes = {}) {
       let erroLimite: ErroFonteLimite | null = null;
 
-      // A cadeia começa nas Recomendações salvas. Uma Nova recomendação só pula esta leitura.
       if (!opcoes.forcarNovaRecomendacao) {
         try {
           const recomendacaoSalva = await adaptadores.recomendacoesSalvas.buscar(consulta);
@@ -97,7 +96,6 @@ export function criarRecomendador(adaptadores: AdaptadoresRecomendador): Recomen
         }
       }
 
-      // A ordem é uma política deste módulo: Gemini, depois Groq.
       for (const gerador of geradores) {
         try {
           const resposta = await gerador.gerar({ consulta, evidencia });

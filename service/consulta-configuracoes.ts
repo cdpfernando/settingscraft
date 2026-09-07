@@ -35,8 +35,6 @@ interface DadosConsultaConfiguracoes {
 }
 
 class ValorConsultaConfiguracoes implements Readonly<DadosConsultaConfiguracoes> {
-  private declare readonly marcaConsultaConfiguracoes: void;
-
   readonly jogo: string;
   readonly placaVideo: string;
   readonly processador: string;
@@ -51,11 +49,14 @@ class ValorConsultaConfiguracoes implements Readonly<DadosConsultaConfiguracoes>
     this.resolucao = dados.resolucao;
     Object.freeze(this);
   }
+
+  // Marca nominal só no sistema de tipos. `private declare` quebra o Babel do Expo 54.
+  private marcaConsultaConfiguracoes(): void {}
 }
 
 export type ConsultaConfiguracoes = ValorConsultaConfiguracoes;
 
-export type CriacaoConsultaConfiguracoes =
+type CriacaoConsultaConfiguracoes =
   | { readonly ok: true; readonly consulta: ConsultaConfiguracoes }
   | { readonly ok: false; readonly erros: ErrosConsultaConfiguracoes };
 

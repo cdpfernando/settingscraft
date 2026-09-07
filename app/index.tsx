@@ -187,7 +187,10 @@ export default function Index() {
       });
   };
 
-  const gerarConfiguracoes = async () => {
+  const consultar = async (
+    forcarNovaRecomendacao: boolean,
+    definirCarregando: (valor: boolean) => void,
+  ) => {
     if (desabilitado) return;
     const consulta = construirConsultaFormulario();
     if (!consulta) return;
@@ -195,35 +198,13 @@ export default function Index() {
     salvarHardwareSePreferido(consulta);
 
     Keyboard.dismiss();
-    setResultado(null);
+    if (!forcarNovaRecomendacao) setResultado(null);
     setErroApi('');
-    setIsLoading(true);
-
-    const resposta = await recomendadorPadrao.consultarConfiguracoes(consulta);
-
-    if (resposta.ok) {
-      setResultado(resposta.resultado);
-      setConsultaExibida(consulta);
-    } else {
-      setErroApi(resposta.erro);
-    }
-    setIsLoading(false);
-  };
-
-  const gerarNovamente = async () => {
-    if (desabilitado) return;
-    const consulta = construirConsultaFormulario();
-    if (!consulta) return;
-
-    salvarHardwareSePreferido(consulta);
-
-    Keyboard.dismiss();
-    setErroApi('');
-    setIsGerandoNovamente(true);
+    definirCarregando(true);
 
     const resposta = await recomendadorPadrao.consultarConfiguracoes(
       consulta,
-      { forcarNovaRecomendacao: true },
+      { forcarNovaRecomendacao },
     );
 
     if (resposta.ok) {
@@ -232,7 +213,15 @@ export default function Index() {
     } else {
       setErroApi(resposta.erro);
     }
-    setIsGerandoNovamente(false);
+    definirCarregando(false);
+  };
+
+  const gerarConfiguracoes = () => {
+    void consultar(false, setIsLoading);
+  };
+
+  const gerarNovamente = () => {
+    void consultar(true, setIsGerandoNovamente);
   };
 
   return (
